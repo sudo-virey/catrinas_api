@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat Test - WebSocket</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #messages { border: 1px solid #ccc; height: 300px; overflow-y: auto; padding: 10px; margin: 10px 0; }
+        input, button { margin: 5px; padding: 5px; }
+        .message { margin: 5px 0; }
+        .system { color: #888; font-style: italic; }
+        .user { color: #007cba; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Test WebSocket - Chat Grupal</h1>
+    <div>
+        <strong>Estado:</strong> <span id="status">Desconectado</span>
+    </div>
+    
+    <div id="messages"></div>
+    
+    <div>
+        <input type="text" id="userInput" placeholder="Tu nombre" value="Usuario" />
+        <input type="text" id="messageInput" placeholder="Escribe tu mensaje..." />
+        <button onclick="sendMessage()">Enviar</button>
+        <button onclick="connect()">Conectar</button>
+        <button onclick="disconnect()">Desconectar</button>
+    </div>
+
+    <script src="https://unpkg.com/@microsoft/signalr@latest/dist/browser/signalr.min.js"></script>
+    <script>
+        let connection = null;
+        const status = document.getElementById('status');
+        const messages = document.getElementById('messages');
+        const userInput = document.getElementById('userInput');
+        const messageInput = document.getElementById('messageInput');
+
+        // Configurar la URL base según el entorno
+        const baseUrl = window.location.origin;
+        const pathBase = window.location.pathname.split('/').slice(0, -1).join('/'); // Obtiene /API_PRUEBA
+        const hubUrl = baseUrl + pathBase + '/chatHub';
+
+        function addMessage(message, className = '') {
+            const div = document.createElement('div');
+            div.className = 'message ' + className;
+            div.innerHTML = message;
+            messages.appendChild(div);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function connect() {
+            connection = new signalR.HubConnectionBuilder()
+                .withUrl(hubUrl)
+                .build();
+
+            connection.start().then(function () {
+                status.textContent = 'Conectado ✅';
+                status.style.color = 'green';
+                addMessage('🟢 Conectado al chat', 'system');
+            }).catch(function (err) {
+                status.textContent = 'Error de conexión ❌';
+                status.style.color = 'red';
+                addMessage('🔴 Error: ' + err.toString(), 'system');
+            });
+
+            // Escuchar mensajes
+            connection.on('ReceiveMessage', function (user, message) {
+                addMessage(`<span class="user">${user}:</span> ${message}`);
+            });
+
+            // Escuchar conexiones
+            connection.on('UserConnected', function (connectionId) {
+                addMessage(`👋 Usuario conectado (ID: ${connectionId.substring(0, 8)}...)`, 'system');
+            });
+
+            // Escuchar desconexiones
+            connection.on('UserDisconnected', function (connectionId) {
+                addMessage(`👋 Usuario desconectado (ID: ${connectionId.substring(0, 8)}...)`, 'system');
+            });
+        }
+
+        function disconnect() {
+            if (connection) {
+                connection.stop();
+                status.textContent = 'Desconectado';
+                status.style.color = 'red';
+                addMessage('🔴 Desconectado del chat', 'system');
+            }
+        }
+
+        function sendMessage() {
+            const user = userInput.value;
+            const message = messageInput.value;
+            
+            if (connection && message) {
+                connection.invoke('SendMessage', user, message).catch(function (err) {
+                    addMessage('🔴 Error enviando mensaje: ' + err.toString(), 'system');
+                });
+                messageInput.value = '';
+            }
+        }
+
+        // Enviar con Enter
+        messageInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Auto-conectar al cargar
+        window.onload = function() {
+            addMessage('🔵 Página cargada. Haz clic en "Conectar" para unirte al chat.', 'system');
+        };
+    </script>
+</body>
+</html>
