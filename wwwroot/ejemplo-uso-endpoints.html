@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ejemplo de Uso - Endpoints Diferenciados</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; max-width: 1200px; }
+        .container { display: flex; gap: 20px; }
+        .panel { flex: 1; border: 1px solid #ccc; padding: 15px; border-radius: 8px; }
+        .admin { border-color: #dc3545; background-color: #f8f9fa; }
+        .votante { border-color: #007cba; background-color: #f0f8ff; }
+        button { padding: 8px 15px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-admin { background-color: #dc3545; color: white; }
+        .btn-votante { background-color: #007cba; color: white; }
+        .response { margin-top: 10px; padding: 10px; background-color: #f5f5f5; border-radius: 4px; max-height: 400px; overflow-y: auto; }
+        .token-input { width: 100%; margin: 5px 0; padding: 5px; font-family: monospace; font-size: 12px; }
+        .endpoint { background-color: #e9ecef; padding: 5px; margin: 5px 0; border-radius: 3px; font-family: monospace; }
+        .warning { background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; margin: 10px 0; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>🔐 Sistema de Endpoints Diferenciados por Tipo de Usuario</h1>
+    
+    <div class="warning">
+        <strong>⚠️ IMPORTANTE:</strong> Los endpoints están protegidos por JWT y Role-based Authorization. 
+        Cada tipo de usuario solo puede acceder a SUS endpoints específicos.
+    </div>
+
+    <div class="container">
+        <!-- Panel Administrador -->
+        <div class="panel admin">
+            <h2>👨‍💼 Panel ADMINISTRADOR</h2>
+            <p><strong>Rol requerido:</strong> "Administrador"</p>
+            
+            <div class="endpoint">GET /api/admin/dashboard</div>
+            <p>Datos completos de administración del concurso</p>
+            
+            <label>Token JWT Admin:</label>
+            <input type="text" id="adminToken" class="token-input" placeholder="Pegar aquí el token JWT de administrador...">
+            
+            <button class="btn-admin" onclick="loginAdmin()">1. Login Admin</button>
+            <button class="btn-admin" onclick="getDashboardAdmin()">2. Get Dashboard Admin</button>
+            <button class="btn-admin" onclick="getDashboardInfo('admin')">3. Get Dashboard Info</button>
+            
+            <div id="adminResponse" class="response"></div>
+            
+            <h4>Estructura de Respuesta Admin:</h4>
+            <pre style="font-size: 11px; background: #f8f9fa; padding: 8px; border-radius: 4px;">
+{
+  "votacionEnCurso": { participante, tiempo... },
+  "participantes": [{ id, nombre, estado, orden }],
+  "ranking": [{ puntaje, detalles completos }],
+  "ajustes": { tiempoVotacion, terminado }
+}
+            </pre>
+        </div>
+
+        <!-- Panel Votante -->
+        <div class="panel votante">
+            <h2>🗳️ Panel VOTANTE</h2>
+            <p><strong>Rol requerido:</strong> "Publico" + AccessType: "Votacion"</p>
+            
+            <div class="endpoint">GET /api/votante/dashboard</div>
+            <p>Datos limitados apropiados para votantes</p>
+            
+            <label>Código de Acceso:</label>
+            <input type="text" id="codigoAcceso" class="token-input" placeholder="JUE001, JUE002, etc...">
+            
+            <label>Token JWT Votante:</label>
+            <input type="text" id="votanteToken" class="token-input" placeholder="Se generará automáticamente...">
+            
+            <button class="btn-votante" onclick="validarAcceso()">1. Validar Acceso</button>
+            <button class="btn-votante" onclick="getDashboardVotante()">2. Get Dashboard Votante</button>
+            <button class="btn-votante" onclick="getDashboardInfo('votante')">3. Get Dashboard Info</button>
+            
+            <div id="votanteResponse" class="response"></div>
+            
+            <h4>Estructura de Respuesta Votante:</h4>
+            <pre style="font-size: 11px; background: #f0f8ff; padding: 8px; border-radius: 4px;">
+{
+  "concursoTerminado": boolean,
+  "votacionEnCurso": boolean,
+  "detallesVotacionEnCurso": { participante actual },
+  "ranking": [{ solo si terminó concurso }]
+}
+            </pre>
+        </div>
+    </div>
+
+    <div style="margin-top: 20px; padding: 15px; background-color: #d4edda; border-radius: 8px;">
+        <h3>🛡️ Seguridad Implementada:</h3>
+        <ul>
+            <li><strong>JWT Token requerido</strong> en todas las peticiones</li>
+            <li><strong>Role-based Authorization:</strong> [Authorize(Roles = "Administrador")] vs [Authorize(Roles = "Publico")]</li>
+            <li><strong>Validación adicional</strong> en el código del endpoint</li>
+            <li><strong>Respuestas completamente diferentes</strong> según el tipo de usuario</li>
+            <li><strong>Impossibilidad de cross-access:</strong> Un admin no puede acceder a endpoints de votante y viceversa</li>
+        </ul>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin + '/CATRINAS_API/api';
+
+        async function makeRequest(url, token = null) {
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            try {
+                const response = await fetch(url, { headers });
+                const data = await response.json();
+                return { status: response.status, data };
+            } catch (error) {
+                return { status: 500, data: { error: error.message } };
+            }
+        }
+
+        async function loginAdmin() {
+            const result = await makeRequest(`${API_BASE}/login`, null);
+            const loginData = {
+                usuario: "admin",
+                password: "admin123"
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(loginData)
+                });
+                
+                const data = await response.json();
+                if (data.token) {
+                    document.getElementById('adminToken').value = data.token;
+                    document.getElementById('adminResponse').innerHTML = 
+                        `<strong>✅ Login Exitoso</strong><br>Token generado para: ${data.nombre}`;
+                } else {
+                    document.getElementById('adminResponse').innerHTML = 
+                        `<strong>❌ Error:</strong> ${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                document.getElementById('adminResponse').innerHTML = 
+                    `<strong>❌ Error:</strong> ${error.message}`;
+            }
+        }
+
+        async function validarAcceso() {
+            const codigo = document.getElementById('codigoAcceso').value;
+            if (!codigo) {
+                alert('Por favor ingresa un código de acceso');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/validar-acceso/${codigo}`);
+                const data = await response.json();
+                
+                if (data.token) {
+                    document.getElementById('votanteToken').value = data.token;
+                    document.getElementById('votanteResponse').innerHTML = 
+                        `<strong>✅ Acceso Válido</strong><br>Token generado para código: ${codigo}`;
+                } else {
+                    document.getElementById('votanteResponse').innerHTML = 
+                        `<strong>❌ Error:</strong> ${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                document.getElementById('votanteResponse').innerHTML = 
+                    `<strong>❌ Error:</strong> ${error.message}`;
+            }
+        }
+
+        async function getDashboardAdmin() {
+            const token = document.getElementById('adminToken').value;
+            if (!token) {
+                alert('Primero haz login como admin');
+                return;
+            }
+
+            const result = await makeRequest(`${API_BASE}/admin/dashboard`, token);
+            document.getElementById('adminResponse').innerHTML = 
+                `<strong>Status: ${result.status}</strong><br><pre>${JSON.stringify(result.data, null, 2)}</pre>`;
+        }
+
+        async function getDashboardVotante() {
+            const token = document.getElementById('votanteToken').value;
+            if (!token) {
+                alert('Primero valida tu código de acceso');
+                return;
+            }
+
+            const result = await makeRequest(`${API_BASE}/votante/dashboard`, token);
+            document.getElementById('votanteResponse').innerHTML = 
+                `<strong>Status: ${result.status}</strong><br><pre>${JSON.stringify(result.data, null, 2)}</pre>`;
+        }
+
+        async function getDashboardInfo(type) {
+            const token = type === 'admin' ? 
+                document.getElementById('adminToken').value : 
+                document.getElementById('votanteToken').value;
+            
+            if (!token) {
+                alert('Primero obtén un token válido');
+                return;
+            }
+
+            const result = await makeRequest(`${API_BASE}/dashboard/info`, token);
+            const responseDiv = type === 'admin' ? 'adminResponse' : 'votanteResponse';
+            document.getElementById(responseDiv).innerHTML = 
+                `<strong>Status: ${result.status}</strong><br><pre>${JSON.stringify(result.data, null, 2)}</pre>`;
+        }
+    </script>
+</body>
+</html>

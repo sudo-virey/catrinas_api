@@ -4,6 +4,7 @@ using CatrinasAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CatrinasAPI.Migrations
 {
     [DbContext(typeof(CatrinasDbContext))]
-    partial class CatrinasDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251024192358_CambiarRangoPuntuacionA1a5")]
+    partial class CambiarRangoPuntuacionA1a5
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

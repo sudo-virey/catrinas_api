@@ -443,4 +443,211 @@ public class HolaMundoController : ControllerBase
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
+
+    // ===== ENDPOINTS ESPECIALIZADOS POR TIPO DE USUARIO =====
+
+    /// <summary>
+    /// Endpoint EXCLUSIVO para usuarios ADMINISTRADORES
+    /// Devuelve datos completos de administración del concurso
+    /// </summary>
+    [HttpGet("admin/dashboard")]
+    [Authorize(Roles = "Administrador")]
+    public async Task<IActionResult> GetAdminDashboard()
+    {
+        try
+        {
+            // Verificar que es realmente un admin
+            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+            if (userRole != "Administrador")
+            {
+                return Forbid("Acceso denegado: Solo administradores");
+            }
+
+            // Obtener votación en curso
+            var votacionEnCurso = await ObtenerVotacionEnCurso();
+            
+            // Obtener todos los participantes con su estado
+            var participantes = await _context.Participantes
+                .Include(p => p.Estado)
+                .OrderBy(p => p.Id_Participante)
+                .Select(p => new
+                {
+                    idParticipante = p.Id_Participante,
+                    participante = p.Nombre,
+                    estado = p.Id_Estado,
+                    orden = p.Id_Participante // Usar ID como orden por defecto
+                })
+                .ToListAsync();
+
+            // Obtener ranking completo
+            var ranking = await ObtenerRankingCompleto();
+
+            // Obtener ajustes del concurso
+            var ultimoAjuste = await _context.Ajustes
+                .OrderByDescending(a => a.Id_Ajuste)
+                .FirstOrDefaultAsync();
+
+            var response = new
+            {
+                votacionEnCurso = votacionEnCurso,
+                participantes = participantes,
+                ranking = ranking,
+                ajustes = new
+                {
+                    tiempoVotacion = ultimoAjuste?.Tiempo_de_Votacion ?? 300,
+                    terminado = ultimoAjuste?.Publicacion_Resultados ?? false
+                }
+            };
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "Error obteniendo dashboard admin", detalle = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Endpoint EXCLUSIVO para usuarios VOTANTES/PUBLICOS
+    /// Devuelve datos limitados apropiados para votantes
+    /// </summary>
+    [HttpGet("votante/dashboard")]
+    [Authorize(Roles = "Publico")]
+    public async Task<IActionResult> GetVotanteDashboard()
+    {
+        try
+        {
+            // Verificar que es realmente un votante
+            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+            var accessType = User.FindFirst("AccessType")?.Value;
+            
+            if (userRole != "Publico" || accessType != "Votacion")
+            {
+                return Forbid("Acceso denegado: Solo votantes públicos");
+            }
+
+            // Verificar si el concurso ha terminado
+            var ultimoAjuste = await _context.Ajustes
+                .OrderByDescending(a => a.Id_Ajuste)
+                .FirstOrDefaultAsync();
+
+            var concursoTerminado = ultimoAjuste?.Publicacion_Resultados ?? false;
+
+            // Obtener votación en curso (si la hay)
+            var votacionEnCurso = await ObtenerVotacionEnCurso();
+            
+            // Obtener ranking (solo si el concurso terminó o hay una votación activa)
+            var ranking = concursoTerminado ? await ObtenerRankingCompleto() : new List<object>();
+
+            var response = new
+            {
+                concursoTerminado = concursoTerminado,
+                votacionEnCurso = votacionEnCurso != null,
+                detallesVotacionEnCurso = votacionEnCurso,
+                ranking = ranking
+            };
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "Error obteniendo dashboard votante", detalle = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Endpoint para validar acceso y redirigir al dashboard apropiado
+    /// </summary>
+    [HttpGet("dashboard/info")]
+    [Authorize]
+    public IActionResult GetDashboardInfo()
+    {
+        try
+        {
+            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+            var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+            var accessType = User.FindFirst("AccessType")?.Value;
+
+            var dashboardInfo = new
+            {
+                usuario = userName,
+                rol = userRole,
+                tipoAcceso = accessType,
+                endpoints = userRole switch
+                {
+                    "Administrador" => new { dashboard = "/api/admin/dashboard", tipo = "admin" },
+                    "Publico" => new { dashboard = "/api/votante/dashboard", tipo = "votante" },
+                    _ => new { dashboard = "", tipo = "unknown" }
+                }
+            };
+
+            return Ok(dashboardInfo);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "Error obteniendo info dashboard", detalle = ex.Message });
+        }
+    }
+
+    // ===== MÉTODOS AUXILIARES =====
+
+    private async Task<object?> ObtenerVotacionEnCurso()
+    {
+        // Por ahora simulamos - puedes implementar lógica real de votación en curso
+        // Esto podría venir de una tabla de sesiones de votación o similar
+        
+        var participanteEnVotacion = await _context.Participantes
+            .Include(p => p.Estado)
+            .Where(p => p.Id_Estado == 2) // Estado "En Espera" (votación activa)
+            .FirstOrDefaultAsync();
+
+        if (participanteEnVotacion == null)
+            return null;
+
+        return new
+        {
+            idParticipante = participanteEnVotacion.Id_Participante,
+            participante = participanteEnVotacion.Nombre,
+            tiempoInicio = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), // Timestamp actual
+            tiempoDuracion = 300 // 5 minutos por defecto
+        };
+    }
+
+    private async Task<List<object>> ObtenerRankingCompleto()
+    {
+        // Obtener ranking basado en evaluaciones promedio
+        var rankings = await _context.Evaluaciones
+            .Include(e => e.Participante)
+            .Where(e => e.Activo)
+            .GroupBy(e => e.Id_Participante)
+            .Select(g => new
+            {
+                IdParticipante = g.Key,
+                Participante = g.First().Participante.Nombre,
+                PromedioTotal = g.Average(e => (decimal)(e.Atuendo + e.Maquillaje + e.Tradiciones + e.Pasarela + e.Interaccion)),
+                PromedioAtuendo = g.Average(e => e.Atuendo),
+                PromedioMaquillaje = g.Average(e => e.Maquillaje),
+                PromedioTradiciones = g.Average(e => e.Tradiciones),
+                PromedioPasarela = g.Average(e => e.Pasarela),
+                PromedioInteraccion = g.Average(e => e.Interaccion)
+            })
+            .OrderByDescending(r => r.PromedioTotal)
+            .ToListAsync();
+
+        return rankings.Select((r, index) => new
+        {
+            idParticipante = r.IdParticipante,
+            participante = r.Participante,
+            puntaje = Math.Round(r.PromedioTotal, 1),
+            detallePuntaje = new
+            {
+                atuendo = Math.Round(r.PromedioAtuendo, 1),
+                maquillaje = Math.Round(r.PromedioMaquillaje, 1),
+                tradiciones = Math.Round(r.PromedioTradiciones, 1),
+                pasarela = Math.Round(r.PromedioPasarela, 1),
+                interaccion = Math.Round(r.PromedioInteraccion, 1)
+            },
+            ordenRanking = index + 1
+        }).Cast<object>().ToList();
+    }
 }

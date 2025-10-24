@@ -7,6 +7,9 @@ using CatrinasAPI.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configurar URLs para aceptar conexiones de red local
+builder.WebHost.UseUrls("http://0.0.0.0:5001");
+
 // Agregar servicios al contenedor
 builder.Services.AddControllers();
 
@@ -60,7 +63,24 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(builder =>
     {
-        builder.WithOrigins("https://ietam.org.mx", "http://localhost:3000", "http://localhost:5000")
+        builder.SetIsOriginAllowed(origin => 
+               {
+                   // Permitir localhost y direcciones IP de red local
+                   if (origin.StartsWith("http://localhost") || origin.StartsWith("https://localhost"))
+                       return true;
+                   
+                   // Permitir IPs de red local (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+                   if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                   {
+                       var host = uri.Host;
+                       return host.StartsWith("192.168.") || 
+                              host.StartsWith("10.") || 
+                              (host.StartsWith("172.") && int.TryParse(host.Split('.')[1], out var second) && second >= 16 && second <= 31);
+                   }
+                   
+                   // Permitir también IETAM
+                   return origin == "https://ietam.org.mx";
+               })
                .AllowAnyMethod()
                .AllowAnyHeader()
                .AllowCredentials();

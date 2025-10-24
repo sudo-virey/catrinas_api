@@ -15,23 +15,23 @@ public class Evaluacion
     public int Id_Acceso { get; set; }
     
     [Required]
-    [Range(1, 10)]
+    [Range(1, 5)]
     public int Atuendo { get; set; }
     
     [Required]
-    [Range(1, 10)]
+    [Range(1, 5)]
     public int Maquillaje { get; set; }
     
     [Required]
-    [Range(1, 10)]
+    [Range(1, 5)]
     public int Tradiciones { get; set; }
     
     [Required]
-    [Range(1, 10)]
+    [Range(1, 5)]
     public int Pasarela { get; set; }
     
     [Required]
-    [Range(1, 10)]
+    [Range(1, 5)]
     public int Interaccion { get; set; }
     
     [Column(TypeName = "decimal(5,2)")]

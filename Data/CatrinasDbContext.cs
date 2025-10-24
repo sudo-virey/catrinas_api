@@ -156,5 +156,19 @@ public class CatrinasDbContext : DbContext
                 Rol = "Administrador"
             }
         );
+
+        // Participantes de ejemplo
+        modelBuilder.Entity<Participante>().HasData(
+            new Participante { Id_Participante = 1, Nombre = "Ana García Martínez", Id_Estado = 2, Activo = true },
+            new Participante { Id_Participante = 2, Nombre = "Luis Rodríguez López", Id_Estado = 2, Activo = true },
+            new Participante { Id_Participante = 3, Nombre = "Carmen Flores Sánchez", Id_Estado = 2, Activo = true },
+            new Participante { Id_Participante = 4, Nombre = "Jorge Hernández Vega", Id_Estado = 2, Activo = true },
+            new Participante { Id_Participante = 5, Nombre = "María Isabel Jiménez", Id_Estado = 2, Activo = true },
+            new Participante { Id_Participante = 6, Nombre = "Carlos Eduardo Morales", Id_Estado = 2, Activo = true },
+            new Participante { Id_Participante = 7, Nombre = "Sofia Alejandra Ruiz", Id_Estado = 2, Activo = true },
+            new Participante { Id_Participante = 8, Nombre = "Ricardo Daniel Torres", Id_Estado = 2, Activo = true },
+            new Participante { Id_Participante = 9, Nombre = "Alejandra Beatriz Luna", Id_Estado = 1, Activo = true },
+            new Participante { Id_Participante = 10, Nombre = "Fernando Javier Castro", Id_Estado = 1, Activo = true }
+        );
     }
 }

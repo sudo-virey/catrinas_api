@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test - Respuestas Diferenciadas por Usuario</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { display: flex; gap: 20px; max-width: 1400px; }
+        .panel { flex: 1; border: 1px solid #ccc; padding: 15px; border-radius: 8px; }
+        .admin-panel { border-color: #dc3545; background-color: #fff5f5; }
+        .votante-panel { border-color: #007cba; background-color: #f0f8ff; }
+        .messages { border: 1px solid #ddd; height: 300px; overflow-y: auto; padding: 10px; margin: 10px 0; background: white; }
+        .data-display { border: 1px solid #28a745; height: 250px; overflow-y: auto; padding: 10px; margin: 10px 0; background: #f8fff8; font-family: monospace; font-size: 12px; }
+        input, button { margin: 5px; padding: 8px; }
+        button { border: none; border-radius: 4px; cursor: pointer; color: white; }
+        .btn-admin { background-color: #dc3545; }
+        .btn-votante { background-color: #007cba; }
+        .btn-neutral { background-color: #6c757d; }
+        .message { margin: 3px 0; }
+        .system { color: #666; font-style: italic; }
+        .user { color: #007cba; font-weight: bold; }
+        .admin { color: #dc3545; font-weight: bold; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        .warning { background-color: #fff3cd; color: #856404; padding: 15px; margin: 10px 0; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <h1>🔌 WebSocket Test - Respuestas Diferenciadas por Tipo de Usuario</h1>
+    
+    <div class="warning">
+        <strong>🎯 OBJETIVO:</strong> Demostrar comunicación bidireccional entre roles en el mismo WebSocket:
+        <br>• <strong>Votantes votan</strong> → <strong>Admin recibe resultados en tiempo real</strong>
+        <br>• <strong>Admin inicia votación</strong> → <strong>Votantes reciben notificación para votar</strong>
+        <br>• <strong>Admin finaliza votación</strong> → <strong>Votantes reciben confirmación</strong>
+        <br>• <strong>Mismo Hub, comunicación cruzada entre roles</strong>
+    </div>
+
+    <div class="container">
+        <!-- Panel Admin -->
+        <div class="panel admin-panel">
+            <h2>👑 Simulación ADMIN</h2>
+            <div>
+                <label>Usuario Admin:</label>
+                <input type="text" id="adminUser" value="admin" style="width: 100px;">
+                <label>Password:</label>
+                <input type="password" id="adminPass" value="admin123" style="width: 100px;">
+                <button class="btn-admin" onclick="connectAsAdmin()">Conectar como Admin</button>
+                <button class="btn-neutral" onclick="disconnectAdmin()">Desconectar</button>
+            </div>
+            
+            <div id="adminStatus" class="status disconnected">❌ Desconectado</div>
+            
+            <div>
+                <button class="btn-admin" onclick="requestAdminDashboard()">📊 Solicitar Dashboard Admin</button>
+                <button class="btn-admin" onclick="requestAdminRanking()">🏆 Solicitar Ranking Admin</button>
+                <button class="btn-admin" onclick="iniciarVotacion()">🚀 Iniciar Votación</button>
+                <button class="btn-admin" onclick="finalizarVotacion()">🏁 Finalizar Votación</button>
+            </div>
+            
+            <div>
+                <label>ID Participante:</label>
+                <input type="number" id="idParticipante" value="1" style="width: 60px;">
+                <label>Tiempo (seg):</label>
+                <input type="number" id="tiempoVotacion" value="300" style="width: 80px;">
+                <input type="text" id="adminMessageInput" placeholder="Mensaje como admin..." style="width: 200px;">
+                <button class="btn-admin" onclick="sendAdminMessage()">💬 Enviar Mensaje</button>
+            </div>
+            
+            <h4>📨 Mensajes Chat:</h4>
+            <div id="adminMessages" class="messages"></div>
+            
+            <h4>📊 Datos Dashboard Admin:</h4>
+            <div id="adminData" class="data-display"></div>
+        </div>
+
+        <!-- Panel Votante -->
+        <div class="panel votante-panel">
+            <h2>🗳️ Simulación VOTANTE</h2>
+            <div>
+                <label>Código Acceso:</label>
+                <input type="text" id="votanteCode" value="JUE001" style="width: 100px;">
+                <button class="btn-votante" onclick="connectAsVotante()">Conectar como Votante</button>
+                <button class="btn-neutral" onclick="disconnectVotante()">Desconectar</button>
+            </div>
+            
+            <div id="votanteStatus" class="status disconnected">❌ Desconectado</div>
+            
+            <div>
+                <button class="btn-votante" onclick="requestVotanteDashboard()">📊 Solicitar Dashboard Votante</button>
+                <button class="btn-votante" onclick="requestVotanteRanking()">🏆 Solicitar Ranking Votante</button>
+                <button class="btn-votante" onclick="enviarVoto()">🗳️ VOTAR</button>
+            </div>
+            
+            <div style="background: #f0f8ff; padding: 10px; margin: 5px 0; border-radius: 4px;">
+                <strong>📝 Calificación (1-10):</strong><br>
+                <label>Atuendo:</label> <input type="number" id="atuendo" min="1" max="10" value="8" style="width: 50px;">
+                <label>Maquillaje:</label> <input type="number" id="maquillaje" min="1" max="10" value="8" style="width: 50px;">
+                <label>Tradiciones:</label> <input type="number" id="tradiciones" min="1" max="10" value="8" style="width: 50px;"><br>
+                <label>Pasarela:</label> <input type="number" id="pasarela" min="1" max="10" value="8" style="width: 50px;">
+                <label>Interacción:</label> <input type="number" id="interaccion" min="1" max="10" value="8" style="width: 50px;">
+            </div>
+            
+            <div>
+                <input type="text" id="votanteMessageInput" placeholder="Mensaje como votante..." style="width: 250px;">
+                <button class="btn-votante" onclick="sendVotanteMessage()">💬 Enviar Mensaje</button>
+            </div>
+            
+            <h4>📨 Mensajes Chat:</h4>
+            <div id="votanteMessages" class="messages"></div>
+            
+            <h4>📊 Datos Dashboard Votante:</h4>
+            <div id="votanteData" class="data-display"></div>
+        </div>
+    </div>
+
+    <div style="margin-top: 20px; padding: 15px; background-color: #e7f3ff; border-radius: 8px;">
+        <h3>🔍 Diferencias en las Respuestas:</h3>
+        <div style="display: flex; gap: 20px;">
+            <div style="flex: 1;">
+                <h4>👑 Admin ve:</h4>
+                <ul>
+                    <li>✅ Recibe cada voto en tiempo real</li>
+                    <li>✅ Estadísticas actualizadas (total votos, promedios)</li>
+                    <li>✅ Control para iniciar/finalizar votaciones</li>
+                    <li>✅ Detalle de cada juez que votó</li>
+                    <li>✅ Porcentaje de votación completado</li>
+                    <li>✅ Dashboard completo de administración</li>
+                </ul>
+            </div>
+            <div style="flex: 1;">
+                <h4>🗳️ Votante ve:</h4>
+                <ul>
+                    <li>✅ Notificación de nueva votación</li>
+                    <li>✅ Datos del participante a votar</li>
+                    <li>✅ Interfaz para votar (1-10 por categoría)</li>
+                    <li>✅ Confirmación de voto enviado</li>
+                    <li>✅ Notificación cuando termina votación</li>
+                    <li>❌ NO ve: votos de otros, estadísticas detalladas</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/@microsoft/signalr@latest/dist/browser/signalr.min.js"></script>
+    <script>
+        let adminConnection = null;
+        let votanteConnection = null;
+        
+        const baseUrl = window.location.origin;
+        const pathBase = window.location.pathname.split('/').slice(0, -1).join('/');
+        const hubUrl = baseUrl + pathBase + '/chatHub';
+        const apiUrl = baseUrl + pathBase + '/api';
+
+        // ===== FUNCIONES ADMIN =====
+        
+        async function connectAsAdmin() {
+            try {
+                // 1. Hacer login para obtener token
+                const response = await fetch(`${apiUrl}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        usuario: document.getElementById('adminUser').value,
+                        password: document.getElementById('adminPass').value
+                    })
+                });
+                
+                const loginData = await response.json();
+                if (!loginData.token) {
+                    throw new Error('Login fallido: ' + loginData.mensaje);
+                }
+                
+                // 2. Conectar al WebSocket con token
+                adminConnection = new signalR.HubConnectionBuilder()
+                    .withUrl(hubUrl + `?access_token=${loginData.token}`)
+                    .build();
+
+                // 3. Configurar event handlers
+                setupAdminEventHandlers();
+                
+                // 4. Conectar
+                await adminConnection.start();
+                document.getElementById('adminStatus').className = 'status connected';
+                document.getElementById('adminStatus').textContent = '✅ Conectado como Admin';
+                
+            } catch (error) {
+                addAdminMessage('Sistema', '❌ Error conectando: ' + error.message, 'system');
+                document.getElementById('adminStatus').className = 'status disconnected';
+                document.getElementById('adminStatus').textContent = '❌ Error: ' + error.message;
+            }
+        }
+        
+        function setupAdminEventHandlers() {
+            // Mensajes de chat
+            adminConnection.on('ReceiveMessage', function (user, message) {
+                addAdminMessage(user, message, user === 'Sistema' ? 'system' : 'admin');
+            });
+            
+            // Datos específicos para admin
+            adminConnection.on('DashboardDataAdmin', function (data) {
+                document.getElementById('adminData').innerHTML = 
+                    '<strong>📊 DATOS ADMIN:</strong><br>' + 
+                    JSON.stringify(data, null, 2);
+            });
+            
+            adminConnection.on('RankingDataAdmin', function (data) {
+                document.getElementById('adminData').innerHTML = 
+                    '<strong>🏆 RANKING ADMIN:</strong><br>' + 
+                    JSON.stringify(data, null, 2);
+            });
+
+            // NUEVO: Eventos de votación para admin
+            adminConnection.on('VotoRecibido', function (data) {
+                document.getElementById('adminData').innerHTML = 
+                    '<strong>🗳️ VOTO RECIBIDO:</strong><br>' + 
+                    JSON.stringify(data, null, 2);
+                addAdminMessage('Sistema', `💫 Voto recibido de ${data.votante}: ${data.puntajeVoto} pts para ${data.participante}`, 'system');
+            });
+
+            adminConnection.on('VotacionIniciada', function (data) {
+                addAdminMessage('Sistema', `🚀 Votación iniciada para ${data.participante} (${data.tiempoDuracion}s)`, 'system');
+            });
+
+            adminConnection.on('VotacionFinalizada', function (data) {
+                document.getElementById('adminData').innerHTML = 
+                    '<strong>🏁 VOTACIÓN FINALIZADA:</strong><br>' + 
+                    JSON.stringify(data, null, 2);
+                addAdminMessage('Sistema', `✅ Votación finalizada: ${data.participante}`, 'system');
+            });
+            
+            adminConnection.on('Error', function (error) {
+                addAdminMessage('Sistema', '❌ Error: ' + error, 'system');
+            });
+        }
+
+        // ===== FUNCIONES VOTANTE =====
+        
+        async function connectAsVotante() {
+            try {
+                // 1. Validar código de acceso
+                const codigo = document.getElementById('votanteCode').value;
+                const response = await fetch(`${apiUrl}/validar-acceso/${codigo}`);
+                const accessData = await response.json();
+                
+                if (!accessData.token) {
+                    throw new Error('Código inválido: ' + accessData.mensaje);
+                }
+                
+                // 2. Conectar al WebSocket con token
+                votanteConnection = new signalR.HubConnectionBuilder()
+                    .withUrl(hubUrl + `?access_token=${accessData.token}`)
+                    .build();
+
+                // 3. Configurar event handlers
+                setupVotanteEventHandlers();
+                
+                // 4. Conectar
+                await votanteConnection.start();
+                document.getElementById('votanteStatus').className = 'status connected';
+                document.getElementById('votanteStatus').textContent = '✅ Conectado como Votante';
+                
+            } catch (error) {
+                addVotanteMessage('Sistema', '❌ Error conectando: ' + error.message, 'system');
+                document.getElementById('votanteStatus').className = 'status disconnected';
+                document.getElementById('votanteStatus').textContent = '❌ Error: ' + error.message;
+            }
+        }
+        
+        function setupVotanteEventHandlers() {
+            // Mensajes de chat
+            votanteConnection.on('ReceiveMessage', function (user, message) {
+                addVotanteMessage(user, message, user === 'Sistema' ? 'system' : 'user');
+            });
+            
+            // Datos específicos para votante (limitados)
+            votanteConnection.on('DashboardDataVotante', function (data) {
+                document.getElementById('votanteData').innerHTML = 
+                    '<strong>📊 DATOS VOTANTE:</strong><br>' + 
+                    JSON.stringify(data, null, 2);
+            });
+            
+            votanteConnection.on('RankingDataVotante', function (data) {
+                document.getElementById('votanteData').innerHTML = 
+                    '<strong>🏆 RANKING VOTANTE:</strong><br>' + 
+                    JSON.stringify(data, null, 2);
+            });
+
+            // NUEVO: Eventos de votación para votantes
+            votanteConnection.on('NuevaVotacionParaVotar', function (data) {
+                document.getElementById('votanteData').innerHTML = 
+                    '<strong>🗳️ NUEVA VOTACIÓN:</strong><br>' + 
+                    JSON.stringify(data, null, 2);
+                addVotanteMessage('Sistema', `🚀 Nueva votación: ${data.participante} - ¡Puedes votar ahora!`, 'system');
+            });
+
+            votanteConnection.on('VotoConfirmado', function (data) {
+                addVotanteMessage('Sistema', `✅ ${data.mensaje} - Total: ${data.totalPuntos} pts`, 'system');
+            });
+
+            votanteConnection.on('VotacionTerminada', function (data) {
+                addVotanteMessage('Sistema', `🏁 ${data.mensaje}`, 'system');
+            });
+            
+            votanteConnection.on('NuevaVotacion', function (data) {
+                addVotanteMessage('Sistema', '🗳️ Nueva votación iniciada: ' + data.participante, 'system');
+            });
+            
+            votanteConnection.on('Error', function (error) {
+                addVotanteMessage('Sistema', '❌ Error: ' + error, 'system');
+            });
+        }
+
+        // ===== FUNCIONES DE ACCIÓN =====
+        
+        async function requestAdminDashboard() {
+            if (adminConnection) {
+                await adminConnection.invoke('RequestDashboardData');
+            }
+        }
+        
+        async function requestAdminRanking() {
+            if (adminConnection) {
+                await adminConnection.invoke('RequestRanking');
+            }
+        }
+
+        // NUEVAS FUNCIONES ADMIN
+        async function iniciarVotacion() {
+            if (adminConnection) {
+                const idParticipante = parseInt(document.getElementById('idParticipante').value);
+                const tiempoDuracion = parseInt(document.getElementById('tiempoVotacion').value);
+                await adminConnection.invoke('IniciarVotacion', idParticipante, tiempoDuracion);
+            }
+        }
+
+        async function finalizarVotacion() {
+            if (adminConnection) {
+                await adminConnection.invoke('FinalizarVotacion');
+            }
+        }
+        
+        async function requestVotanteDashboard() {
+            if (votanteConnection) {
+                await votanteConnection.invoke('RequestDashboardData');
+            }
+        }
+        
+        async function requestVotanteRanking() {
+            if (votanteConnection) {
+                await votanteConnection.invoke('RequestRanking');
+            }
+        }
+
+        // NUEVA FUNCIÓN VOTANTE
+        async function enviarVoto() {
+            if (votanteConnection) {
+                const atuendo = parseInt(document.getElementById('atuendo').value);
+                const maquillaje = parseInt(document.getElementById('maquillaje').value);
+                const tradiciones = parseInt(document.getElementById('tradiciones').value);
+                const pasarela = parseInt(document.getElementById('pasarela').value);
+                const interaccion = parseInt(document.getElementById('interaccion').value);
+                
+                await votanteConnection.invoke('EnviarVoto', atuendo, maquillaje, tradiciones, pasarela, interaccion);
+            }
+        }
+        
+        async function sendAdminMessage() {
+            const message = document.getElementById('adminMessageInput').value;
+            if (adminConnection && message) {
+                await adminConnection.invoke('SendMessage', message);
+                document.getElementById('adminMessageInput').value = '';
+            }
+        }
+        
+        async function sendVotanteMessage() {
+            const message = document.getElementById('votanteMessageInput').value;
+            if (votanteConnection && message) {
+                await votanteConnection.invoke('SendMessage', message);
+                document.getElementById('votanteMessageInput').value = '';
+            }
+        }
+
+        // ===== FUNCIONES DE DESCONEXIÓN =====
+        
+        async function disconnectAdmin() {
+            if (adminConnection) {
+                await adminConnection.stop();
+                adminConnection = null;
+                document.getElementById('adminStatus').className = 'status disconnected';
+                document.getElementById('adminStatus').textContent = '❌ Desconectado';
+            }
+        }
+        
+        async function disconnectVotante() {
+            if (votanteConnection) {
+                await votanteConnection.stop();
+                votanteConnection = null;
+                document.getElementById('votanteStatus').className = 'status disconnected';
+                document.getElementById('votanteStatus').textContent = '❌ Desconectado';
+            }
+        }
+
+        // ===== FUNCIONES AUXILIARES =====
+        
+        function addAdminMessage(user, message, className) {
+            const div = document.createElement('div');
+            div.className = 'message ' + className;
+            div.innerHTML = `<strong>${user}:</strong> ${message}`;
+            document.getElementById('adminMessages').appendChild(div);
+            document.getElementById('adminMessages').scrollTop = document.getElementById('adminMessages').scrollHeight;
+        }
+        
+        function addVotanteMessage(user, message, className) {
+            const div = document.createElement('div');
+            div.className = 'message ' + className;
+            div.innerHTML = `<strong>${user}:</strong> ${message}`;
+            document.getElementById('votanteMessages').appendChild(div);
+            document.getElementById('votanteMessages').scrollTop = document.getElementById('votanteMessages').scrollHeight;
+        }
+
+        // Permitir enviar con Enter
+        document.getElementById('adminMessageInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') sendAdminMessage();
+        });
+        
+        document.getElementById('votanteMessageInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') sendVotanteMessage();
+        });
+    </script>
+</body>
+</html>
