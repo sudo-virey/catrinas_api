@@ -1,0 +1,66 @@
+{
+    "votacionEnCurso": {
+        "idParticipante": 1,
+        "participante": "Juan Perez",
+        "tiempoInicio": 1700000000,
+        "tiempoDuracion": 300
+    },
+    "participantes": [
+        {
+            "idParticipante": 1,
+            "participante": "Juan Perez",
+            "estado": 2,
+            "orden": 1
+        },
+        {
+            "idParticipante": 2,
+            "participante": "Maria Gomez",
+            "estado": 1,
+            "orden": 2
+        },
+        {
+            "idParticipante": 3,
+            "participante": "Luis Rodriguez",
+            "estado": 1,
+            "orden": 3
+        },
+        {
+            "idParticipante": 4,
+            "participante": "Maria Gomez",
+            "estado": 1,
+            "orden": 4
+        }
+    ],
+    "ranking": [
+        {
+            "idParticipante": 2,
+            "participante": "Maria Gomez",
+            "puntaje": 15,
+            "detallePuntaje": {
+                "atuendo": 5,
+                "maquillaje": 5,
+                "tradiciones": 5,
+                "pasarela": 5,
+                "interaccion": 5
+            },
+            "ordenRanking": 1
+        },
+        {
+            "idParticipante": 3,
+            "participante": "Luis Rodriguez",
+            "puntaje": 5,
+            "detallePuntaje": {
+                "atuendo": 5,
+                "maquillaje": 5,
+                "tradiciones": 5,
+                "pasarela": 5,
+                "interaccion": 5
+            },
+            "ordenRanking": 3
+        }
+    ],
+    "ajustes": {
+        "tiempoVotacion": 300,
+        "terminado": false
+    }
+}

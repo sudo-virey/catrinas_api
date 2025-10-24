@@ -17,6 +17,13 @@
         <strong>Estado:</strong> <span id="status">Desconectado</span>
     </div>
     
+    <div style="margin: 10px 0; padding: 10px; border: 1px solid #ddd; background-color: #f9f9f9;">
+        <strong>🔐 Autenticación JWT:</strong><br>
+        <input type="password" id="jwtInput" placeholder="Ingresa tu token JWT aquí..." style="width: 500px; margin: 5px 0;" />
+        <button onclick="obtenerJwtPrueba()" style="margin-left: 10px; background-color: #4CAF50; color: white; border: none; padding: 5px 10px; cursor: pointer;">🔑 Obtener JWT de Prueba</button>
+        <br><small style="color: #666;">Necesitas un JWT válido para conectarte al chat. Usa el botón para generar uno de prueba.</small>
+    </div>
+    
     <div id="messages"></div>
     
     <div>
@@ -34,6 +41,7 @@
         const messages = document.getElementById('messages');
         const userInput = document.getElementById('userInput');
         const messageInput = document.getElementById('messageInput');
+        const jwtInput = document.getElementById('jwtInput');
 
         // Configurar la URL base según el entorno
         const baseUrl = window.location.origin;
@@ -49,18 +57,30 @@
         }
 
         function connect() {
+            const jwtToken = jwtInput.value.trim();
+            
+            if (!jwtToken) {
+                addMessage('🔴 Error: Debes ingresar un token JWT para conectarte', 'system');
+                status.textContent = 'Error: JWT requerido ❌';
+                status.style.color = 'red';
+                return;
+            }
+
             connection = new signalR.HubConnectionBuilder()
-                .withUrl(hubUrl)
+                .withUrl(hubUrl, {
+                    accessTokenFactory: () => jwtToken
+                })
                 .build();
 
             connection.start().then(function () {
                 status.textContent = 'Conectado ✅';
                 status.style.color = 'green';
-                addMessage('🟢 Conectado al chat', 'system');
+                addMessage('🟢 Conectado al chat con autenticación JWT', 'system');
             }).catch(function (err) {
                 status.textContent = 'Error de conexión ❌';
                 status.style.color = 'red';
                 addMessage('🔴 Error: ' + err.toString(), 'system');
+                addMessage('🔴 Verifica que tu JWT sea válido y no haya expirado', 'system');
             });
 
             // Escuchar mensajes
@@ -107,9 +127,29 @@
             }
         });
 
+        // Función para obtener JWT de prueba
+        async function obtenerJwtPrueba() {
+            try {
+                addMessage('🔄 Solicitando JWT de prueba...', 'system');
+                
+                const response = await fetch(baseUrl + pathBase + '/api/test-jwt');
+                const data = await response.json();
+                
+                if (response.ok && data.token) {
+                    jwtInput.value = data.token;
+                    addMessage('✅ JWT de prueba obtenido exitosamente', 'system');
+                    addMessage(`👤 Usuario: ${data.usuario} | ⏰ Expira: ${new Date(data.expira).toLocaleString()}`, 'system');
+                } else {
+                    addMessage('❌ Error obteniendo JWT: ' + (data.error || 'Error desconocido'), 'system');
+                }
+            } catch (error) {
+                addMessage('❌ Error de conexión al obtener JWT: ' + error.message, 'system');
+            }
+        }
+
         // Auto-conectar al cargar
         window.onload = function() {
-            addMessage('🔵 Página cargada. Haz clic en "Conectar" para unirte al chat.', 'system');
+            addMessage('🔵 Página cargada. Usa el botón "Obtener JWT de Prueba" y luego "Conectar".', 'system');
         };
     </script>
 </body>

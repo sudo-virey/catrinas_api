@@ -1,0 +1,12 @@
+{
+    "cambiosAjustes":false,//Indica si hubo cambios en los ajustes del evento
+    "cambiosParticipante":false, //Indica si hubo cambios en el estado del participante
+    "ajustes":{
+        "tiempoVotacion":300,  //Duracion de la votacion en segundos
+        "terminado":false //Indica si el concurso ha terminado
+    },
+    "participante":{
+        "iniciarVotacion":true, //Indica si se debe iniciar/cancelar la votacion para el participante
+        "idParticipante":1 //ID del participante que debe afectar
+    }
+}
