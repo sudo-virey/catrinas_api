@@ -10,13 +10,13 @@
         {
             "idParticipante": 2,
             "participante": "Luis Rodríguez López",
-            "estado": 1,
+            "estado": 3,
             "orden": 2
         },
         {
             "idParticipante": 3,
             "participante": "Carmen Flores Sánchez",
-            "estado": 1,
+            "estado": 3,
             "orden": 3
         },
         {
@@ -64,6 +64,20 @@
     ],
     "ranking": [
         {
+            "idParticipante": 3,
+            "participante": "Carmen Flores Sánchez",
+            "puntaje": 18,
+            "detallePuntaje": {
+                "atuendo": 9,
+                "maquillaje": 9,
+                "tradiciones": 9,
+                "pasarela": 9,
+                "interaccion": 9
+            },
+            "ordenRanking": 1,
+            "numeroEvaluaciones": 3
+        },
+        {
             "idParticipante": 1,
             "participante": "Ana García Martínez",
             "puntaje": 12,
@@ -74,8 +88,22 @@
                 "pasarela": 6,
                 "interaccion": 6
             },
-            "ordenRanking": 1,
+            "ordenRanking": 2,
             "numeroEvaluaciones": 2
+        },
+        {
+            "idParticipante": 2,
+            "participante": "Luis Rodríguez López",
+            "puntaje": 10,
+            "detallePuntaje": {
+                "atuendo": 5,
+                "maquillaje": 5,
+                "tradiciones": 5,
+                "pasarela": 5,
+                "interaccion": 5
+            },
+            "ordenRanking": 3,
+            "numeroEvaluaciones": 1
         }
     ],
     "ajustes": {
