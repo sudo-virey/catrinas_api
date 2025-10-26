@@ -62,6 +62,13 @@
             </div>
             
             <div>
+                <label>⚙️ Configuración Global:</label>
+                <input type="number" id="nuevoTiempoGlobal" value="300" min="1" style="width: 80px;">
+                <span>segundos</span>
+                <button class="btn-admin" onclick="actualizarTiempoVotacion()">🕒 Actualizar Tiempo Global</button>
+            </div>
+            
+            <div>
                 <label>ID Participante:</label>
                 <input type="number" id="idParticipante" value="1" style="width: 60px;">
                 <label>Tiempo (seg):</label>
@@ -238,6 +245,16 @@
                     JSON.stringify(data, null, 2);
                 addAdminMessage('Sistema', `❌ ${data.mensaje}`, 'system');
             });
+
+            adminConnection.on('TiempoVotacionActualizado', function (data) {
+                document.getElementById('adminData').innerHTML = 
+                    '<strong>🕒 TIEMPO ACTUALIZADO:</strong><br>' + 
+                    JSON.stringify(data, null, 2);
+                addAdminMessage('Sistema', `🕒 ${data.mensaje}`, 'system');
+                
+                // Actualizar el campo de tiempo de votación para próximas votaciones
+                document.getElementById('tiempoVotacion').value = data.nuevoTiempo;
+            });
             
             adminConnection.on('Error', function (error) {
                 addAdminMessage('Sistema', '❌ Error: ' + error, 'system');
@@ -358,6 +375,21 @@
             if (adminConnection) {
                 if (confirm('¿Estás seguro de que deseas cancelar la votación actual? Esta acción cambiará el participante a estado Registrado y desactivará todos los votos.')) {
                     await adminConnection.invoke('CancelarVotacion');
+                }
+            }
+        }
+
+        async function actualizarTiempoVotacion() {
+            if (adminConnection) {
+                const nuevoTiempo = parseInt(document.getElementById('nuevoTiempoGlobal').value);
+                
+                if (nuevoTiempo <= 0) {
+                    alert('El tiempo debe ser mayor a 0 segundos');
+                    return;
+                }
+                
+                if (confirm(`¿Estás seguro de que deseas cambiar el tiempo global de votación a ${nuevoTiempo} segundos? Esto creará un nuevo registro de configuración.`)) {
+                    await adminConnection.invoke('ActualizarTiempoVotacion', nuevoTiempo);
                 }
             }
         }

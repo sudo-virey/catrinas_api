@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using CatrinasAPI.Data;
+using CatrinasAPI.Models;
 using System.Security.Claims;
 
 namespace CatrinasAPI.Hubs;
@@ -787,6 +788,81 @@ public class ChatHub : Hub
         catch (Exception ex)
         {
             await Clients.Caller.SendAsync("Error", $"Error cancelando votación: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// ADMIN: Actualizar tiempo de votación - crear nuevo registro de ajustes si no hay publicación activa ni votación en curso
+    /// </summary>
+    [Authorize(Roles = "Administrador")]
+    public async Task ActualizarTiempoVotacion(int nuevoTiempo)
+    {
+        try
+        {
+            // Validar que el tiempo sea positivo
+            if (nuevoTiempo <= 0)
+            {
+                await Clients.Caller.SendAsync("Error", "El tiempo de votación debe ser mayor a 0 segundos");
+                return;
+            }
+
+            // Verificar si hay una votación en curso
+            var votacionEnCurso = await _context.Participantes
+                .AnyAsync(p => p.Id_Estado == 2); // Estado 2 = En Votación
+
+            if (votacionEnCurso)
+            {
+                await Clients.Caller.SendAsync("Error", "No se puede cambiar el tiempo de votación mientras hay una votación en curso");
+                return;
+            }
+
+            // Verificar si hay publicación de resultados activa
+            var ajusteActual = await _context.Ajustes
+                .Where(a => a.Activo)
+                .FirstOrDefaultAsync();
+
+            if (ajusteActual != null && ajusteActual.Publicacion_Resultados)
+            {
+                await Clients.Caller.SendAsync("Error", "No se puede cambiar el tiempo de votación mientras la publicación de resultados esté activa");
+                return;
+            }
+
+            // Desactivar el ajuste actual si existe
+            if (ajusteActual != null)
+            {
+                ajusteActual.Activo = false;
+            }
+
+            // Crear nuevo ajuste con el nuevo tiempo
+            var nuevoAjuste = new Ajuste
+            {
+                Tiempo_de_Votacion = nuevoTiempo,
+                Publicacion_Resultados = false,
+                Fecha = DateTime.Now,
+                Activo = true
+            };
+
+            _context.Ajustes.Add(nuevoAjuste);
+            await _context.SaveChangesAsync();
+
+            // Notificar a administradores sobre el cambio
+            await Clients.Group("Administradores").SendAsync("TiempoVotacionActualizado", new
+            {
+                nuevoTiempo = nuevoTiempo,
+                tiempoAnterior = ajusteActual?.Tiempo_de_Votacion ?? 0,
+                fecha = nuevoAjuste.Fecha,
+                idAjuste = nuevoAjuste.Id_Ajuste,
+                mensaje = $"Tiempo de votación actualizado a {nuevoTiempo} segundos"
+            });
+
+            // Actualizar datos del dashboard para administradores
+            var adminDataActualizada = await GetAdminDashboardData();
+            await Clients.Group("Administradores").SendAsync("DashboardDataAdmin", adminDataActualizada);
+
+        }
+        catch (Exception ex)
+        {
+            await Clients.Caller.SendAsync("Error", $"Error actualizando tiempo de votación: {ex.Message}");
         }
     }
 
