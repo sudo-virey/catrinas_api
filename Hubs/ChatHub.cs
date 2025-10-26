@@ -346,6 +346,10 @@ public class ChatHub : Hub
                 }
             });
 
+            // Enviar actualización completa del dashboard a los administradores
+            var dashboardActualizado = await GetAdminDashboardData();
+            await Clients.Group("Administradores").SendAsync("DashboardDataAdmin", dashboardActualizado);
+
         }
         catch (Exception ex)
         {
@@ -976,23 +980,24 @@ public class ChatHub : Hub
 
     private async Task<List<object>> GetAdminRanking()
     {
-        // Ranking completo con todos los detalles para admin
-        var rankings = await _context.Evaluaciones
-            .Include(e => e.Participante)
-            .Where(e => e.Activo)
-            .GroupBy(e => e.Id_Participante)
-            .Select(g => new
-            {
-                IdParticipante = g.Key,
-                Participante = g.First().Participante.Nombre,
-                SumaTotal = g.Sum(e => e.Total),
-                SumaAtuendo = g.Sum(e => e.Atuendo),
-                SumaMaquillaje = g.Sum(e => e.Maquillaje),
-                SumaTradiciones = g.Sum(e => e.Tradiciones),
-                SumaPasarela = g.Sum(e => e.Pasarela),
-                SumaInteraccion = g.Sum(e => e.Interaccion),
-                NumeroEvaluaciones = g.Count()
-            })
+        // Ranking completo con todos los detalles para admin - solo participantes calificados (estado 3)
+        var rankings = await _context.Participantes
+            .Where(p => p.Id_Estado == 3) // Solo participantes calificados
+            .GroupJoin(_context.Evaluaciones.Where(e => e.Activo),
+                p => p.Id_Participante,
+                e => e.Id_Participante,
+                (p, evaluaciones) => new
+                {
+                    IdParticipante = p.Id_Participante,
+                    Participante = p.Nombre,
+                    SumaTotal = evaluaciones.Sum(e => (decimal?)e.Total) ?? 0,
+                    SumaAtuendo = evaluaciones.Sum(e => (int?)e.Atuendo) ?? 0,
+                    SumaMaquillaje = evaluaciones.Sum(e => (int?)e.Maquillaje) ?? 0,
+                    SumaTradiciones = evaluaciones.Sum(e => (int?)e.Tradiciones) ?? 0,
+                    SumaPasarela = evaluaciones.Sum(e => (int?)e.Pasarela) ?? 0,
+                    SumaInteraccion = evaluaciones.Sum(e => (int?)e.Interaccion) ?? 0,
+                    NumeroEvaluaciones = evaluaciones.Count()
+                })
             .OrderByDescending(r => r.SumaTotal)
             .ToListAsync();
 
@@ -1016,23 +1021,24 @@ public class ChatHub : Hub
 
     private async Task<List<object>> GetAdminRankingFromContext(CatrinasDbContext context)
     {
-        // Ranking completo con todos los detalles para admin usando contexto específico
-        var rankings = await context.Evaluaciones
-            .Include(e => e.Participante)
-            .Where(e => e.Activo)
-            .GroupBy(e => e.Id_Participante)
-            .Select(g => new
-            {
-                IdParticipante = g.Key,
-                Participante = g.First().Participante.Nombre,
-                SumaTotal = g.Sum(e => e.Total),
-                SumaAtuendo = g.Sum(e => e.Atuendo),
-                SumaMaquillaje = g.Sum(e => e.Maquillaje),
-                SumaTradiciones = g.Sum(e => e.Tradiciones),
-                SumaPasarela = g.Sum(e => e.Pasarela),
-                SumaInteraccion = g.Sum(e => e.Interaccion),
-                NumeroEvaluaciones = g.Count()
-            })
+        // Ranking completo con todos los detalles para admin usando contexto específico - solo participantes calificados (estado 3)
+        var rankings = await context.Participantes
+            .Where(p => p.Id_Estado == 3) // Solo participantes calificados
+            .GroupJoin(context.Evaluaciones.Where(e => e.Activo),
+                p => p.Id_Participante,
+                e => e.Id_Participante,
+                (p, evaluaciones) => new
+                {
+                    IdParticipante = p.Id_Participante,
+                    Participante = p.Nombre,
+                    SumaTotal = evaluaciones.Sum(e => (decimal?)e.Total) ?? 0,
+                    SumaAtuendo = evaluaciones.Sum(e => (int?)e.Atuendo) ?? 0,
+                    SumaMaquillaje = evaluaciones.Sum(e => (int?)e.Maquillaje) ?? 0,
+                    SumaTradiciones = evaluaciones.Sum(e => (int?)e.Tradiciones) ?? 0,
+                    SumaPasarela = evaluaciones.Sum(e => (int?)e.Pasarela) ?? 0,
+                    SumaInteraccion = evaluaciones.Sum(e => (int?)e.Interaccion) ?? 0,
+                    NumeroEvaluaciones = evaluaciones.Count()
+                })
             .OrderByDescending(r => r.SumaTotal)
             .ToListAsync();
 
