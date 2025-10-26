@@ -22,7 +22,7 @@
         {
             "idParticipante": 4,
             "participante": "Jorge Hernández Vega",
-            "estado": 1,
+            "estado": 3,
             "orden": 4
         },
         {
@@ -64,6 +64,20 @@
     ],
     "ranking": [
         {
+            "idParticipante": 4,
+            "participante": "Jorge Hernández Vega",
+            "puntaje": 30,
+            "detallePuntaje": {
+                "atuendo": 15,
+                "maquillaje": 15,
+                "tradiciones": 15,
+                "pasarela": 15,
+                "interaccion": 15
+            },
+            "ordenRanking": 1,
+            "numeroEvaluaciones": 3
+        },
+        {
             "idParticipante": 3,
             "participante": "Carmen Flores Sánchez",
             "puntaje": 18,
@@ -74,7 +88,7 @@
                 "pasarela": 9,
                 "interaccion": 9
             },
-            "ordenRanking": 1,
+            "ordenRanking": 2,
             "numeroEvaluaciones": 3
         },
         {
@@ -88,7 +102,7 @@
                 "pasarela": 6,
                 "interaccion": 6
             },
-            "ordenRanking": 2,
+            "ordenRanking": 3,
             "numeroEvaluaciones": 2
         },
         {
@@ -102,7 +116,7 @@
                 "pasarela": 5,
                 "interaccion": 5
             },
-            "ordenRanking": 3,
+            "ordenRanking": 4,
             "numeroEvaluaciones": 1
         }
     ],

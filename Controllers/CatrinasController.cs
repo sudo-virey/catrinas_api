@@ -12,12 +12,12 @@ namespace CatrinasAPI.Controllers;
 
 [ApiController]
 [Route("api")]
-public class HolaMundoController : ControllerBase
+public class CatrinasController : ControllerBase
 {
     private readonly CatrinasDbContext _context;
     private readonly IConfiguration _configuration;
 
-    public HolaMundoController(CatrinasDbContext context, IConfiguration configuration)
+    public CatrinasController(CatrinasDbContext context, IConfiguration configuration)
     {
         _context = context;
         _configuration = configuration;

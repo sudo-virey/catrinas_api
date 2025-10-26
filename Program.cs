@@ -53,7 +53,15 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 // Agregar servicios de Swagger
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Catrinas API",
+        Version = "v1",
+        Description = "API para el Sistema de Concurso de Catrinas"
+    });
+});
 
 // Configurar servicios de WebSocket y SignalR
 builder.Services.AddSignalR();
@@ -107,6 +115,7 @@ app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Catrinas API V1");
     c.RoutePrefix = "swagger";
+    c.DocumentTitle = "Catrinas API - Documentación";
 });
 
 // Habilitar archivos estáticos para la página de prueba
