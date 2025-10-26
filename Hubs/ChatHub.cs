@@ -395,14 +395,10 @@ public class ChatHub : Hub
                 decimal puntajeTotal = 0;
                 if (evaluaciones.Any())
                 {
-                    // Promedio de todos los criterios (escala 1-5, convertido a puntaje total)
-                    var promedioCriterios = evaluaciones.Average(e => 
-                        e.Atuendo + e.Maquillaje + e.Tradiciones + e.Pasarela + e.Interaccion);
+                    // Sumatoria de la columna Total de todas las evaluaciones
+                    puntajeTotal = evaluaciones.Sum(e => e.Total);
                     
-                    // Convertir a escala de 100 puntos para el ranking
-                    puntajeTotal = (decimal)promedioCriterios * 4; // 25 puntos máximo * 4 = 100 puntos máximo
-                    
-                    Console.WriteLine($"[FINALIZACION AUTO SCOPE] Promedio criterios: {promedioCriterios:F2}, Puntaje total: {puntajeTotal:F2}");
+                    Console.WriteLine($"[FINALIZACION AUTO SCOPE] Suma de columna Total: {puntajeTotal:F2}");
                 }
 
                 // Verificar si ya existe un registro en Ranking para este participante
@@ -538,14 +534,10 @@ public class ChatHub : Hub
                 decimal puntajeTotal = 0;
                 if (evaluaciones.Any())
                 {
-                    // Promedio de todos los criterios (escala 1-5, convertido a puntaje total)
-                    var promedioCriterios = evaluaciones.Average(e => 
-                        e.Atuendo + e.Maquillaje + e.Tradiciones + e.Pasarela + e.Interaccion);
+                    // Sumatoria de la columna Total de todas las evaluaciones
+                    puntajeTotal = evaluaciones.Sum(e => e.Total);
                     
-                    // Convertir a escala de 100 puntos para el ranking
-                    puntajeTotal = (decimal)promedioCriterios * 4; // 25 puntos máximo * 4 = 100 puntos máximo
-                    
-                    Console.WriteLine($"[FINALIZACION AUTO] Promedio criterios: {promedioCriterios:F2}, Puntaje total: {puntajeTotal:F2}");
+                    Console.WriteLine($"[FINALIZACION AUTO] Suma de columna Total: {puntajeTotal:F2}");
                 }
 
                 // Verificar si ya existe un registro en Ranking para este participante
@@ -658,12 +650,8 @@ public class ChatHub : Hub
             decimal puntajeTotal = 0;
             if (evaluaciones.Any())
             {
-                // Promedio de todos los criterios (escala 1-5, convertido a puntaje total)
-                var promedioCriterios = evaluaciones.Average(e => 
-                    e.Atuendo + e.Maquillaje + e.Tradiciones + e.Pasarela + e.Interaccion);
-                
-                // Convertir a escala de 100 puntos para el ranking
-                puntajeTotal = (decimal)promedioCriterios * 4; // 25 puntos máximo * 4 = 100 puntos máximo
+                // Sumatoria de la columna Total de todas las evaluaciones
+                puntajeTotal = evaluaciones.Sum(e => e.Total);
             }
 
             // Verificar si ya existe un registro en Ranking para este participante
@@ -997,29 +985,29 @@ public class ChatHub : Hub
             {
                 IdParticipante = g.Key,
                 Participante = g.First().Participante.Nombre,
-                PromedioTotal = g.Average(e => (decimal)(e.Atuendo + e.Maquillaje + e.Tradiciones + e.Pasarela + e.Interaccion)),
-                PromedioAtuendo = g.Average(e => e.Atuendo),
-                PromedioMaquillaje = g.Average(e => e.Maquillaje),
-                PromedioTradiciones = g.Average(e => e.Tradiciones),
-                PromedioPasarela = g.Average(e => e.Pasarela),
-                PromedioInteraccion = g.Average(e => e.Interaccion),
+                SumaTotal = g.Sum(e => e.Total),
+                SumaAtuendo = g.Sum(e => e.Atuendo),
+                SumaMaquillaje = g.Sum(e => e.Maquillaje),
+                SumaTradiciones = g.Sum(e => e.Tradiciones),
+                SumaPasarela = g.Sum(e => e.Pasarela),
+                SumaInteraccion = g.Sum(e => e.Interaccion),
                 NumeroEvaluaciones = g.Count()
             })
-            .OrderByDescending(r => r.PromedioTotal)
+            .OrderByDescending(r => r.SumaTotal)
             .ToListAsync();
 
         return rankings.Select((r, index) => new
         {
             idParticipante = r.IdParticipante,
             participante = r.Participante,
-            puntaje = Math.Round(r.PromedioTotal, 2),
+            puntaje = (decimal)r.SumaTotal,
             detallePuntaje = new
             {
-                atuendo = Math.Round(r.PromedioAtuendo, 2),
-                maquillaje = Math.Round(r.PromedioMaquillaje, 2),
-                tradiciones = Math.Round(r.PromedioTradiciones, 2),
-                pasarela = Math.Round(r.PromedioPasarela, 2),
-                interaccion = Math.Round(r.PromedioInteraccion, 2)
+                atuendo = (decimal)r.SumaAtuendo,
+                maquillaje = (decimal)r.SumaMaquillaje,
+                tradiciones = (decimal)r.SumaTradiciones,
+                pasarela = (decimal)r.SumaPasarela,
+                interaccion = (decimal)r.SumaInteraccion
             },
             ordenRanking = index + 1,
             numeroEvaluaciones = r.NumeroEvaluaciones // Solo admin ve esto
@@ -1037,29 +1025,29 @@ public class ChatHub : Hub
             {
                 IdParticipante = g.Key,
                 Participante = g.First().Participante.Nombre,
-                PromedioTotal = g.Average(e => (decimal)(e.Atuendo + e.Maquillaje + e.Tradiciones + e.Pasarela + e.Interaccion)),
-                PromedioAtuendo = g.Average(e => e.Atuendo),
-                PromedioMaquillaje = g.Average(e => e.Maquillaje),
-                PromedioTradiciones = g.Average(e => e.Tradiciones),
-                PromedioPasarela = g.Average(e => e.Pasarela),
-                PromedioInteraccion = g.Average(e => e.Interaccion),
+                SumaTotal = g.Sum(e => e.Total),
+                SumaAtuendo = g.Sum(e => e.Atuendo),
+                SumaMaquillaje = g.Sum(e => e.Maquillaje),
+                SumaTradiciones = g.Sum(e => e.Tradiciones),
+                SumaPasarela = g.Sum(e => e.Pasarela),
+                SumaInteraccion = g.Sum(e => e.Interaccion),
                 NumeroEvaluaciones = g.Count()
             })
-            .OrderByDescending(r => r.PromedioTotal)
+            .OrderByDescending(r => r.SumaTotal)
             .ToListAsync();
 
         return rankings.Select((r, index) => new
         {
             idParticipante = r.IdParticipante,
             participante = r.Participante,
-            puntaje = Math.Round(r.PromedioTotal, 2),
+            puntaje = (decimal)r.SumaTotal,
             detallePuntaje = new
             {
-                atuendo = Math.Round(r.PromedioAtuendo, 2),
-                maquillaje = Math.Round(r.PromedioMaquillaje, 2),
-                tradiciones = Math.Round(r.PromedioTradiciones, 2),
-                pasarela = Math.Round(r.PromedioPasarela, 2),
-                interaccion = Math.Round(r.PromedioInteraccion, 2)
+                atuendo = (decimal)r.SumaAtuendo,
+                maquillaje = (decimal)r.SumaMaquillaje,
+                tradiciones = (decimal)r.SumaTradiciones,
+                pasarela = (decimal)r.SumaPasarela,
+                interaccion = (decimal)r.SumaInteraccion
             },
             ordenRanking = index + 1,
             numeroEvaluaciones = r.NumeroEvaluaciones // Solo admin ve esto
@@ -1077,16 +1065,16 @@ public class ChatHub : Hub
             {
                 IdParticipante = g.Key,
                 Participante = g.First().Participante.Nombre,
-                PromedioTotal = g.Average(e => (decimal)(e.Atuendo + e.Maquillaje + e.Tradiciones + e.Pasarela + e.Interaccion))
+                SumaTotal = g.Sum(e => e.Total)
             })
-            .OrderByDescending(r => r.PromedioTotal)
+            .OrderByDescending(r => r.SumaTotal)
             .ToListAsync();
 
         return rankings.Select((r, index) => new
         {
             idParticipante = r.IdParticipante,
             participante = r.Participante,
-            puntaje = Math.Round(r.PromedioTotal, 1), // Menos decimales
+            puntaje = (decimal)r.SumaTotal, // Menos decimales
             ordenRanking = index + 1
             // Sin detalles de puntaje para votantes
         }).Cast<object>().ToList();

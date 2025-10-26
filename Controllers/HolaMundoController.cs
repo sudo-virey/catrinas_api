@@ -615,7 +615,7 @@ public class HolaMundoController : ControllerBase
 
     private async Task<List<object>> ObtenerRankingCompleto()
     {
-        // Obtener ranking basado en evaluaciones promedio
+        // Obtener ranking basado en evaluaciones suma total
         var rankings = await _context.Evaluaciones
             .Include(e => e.Participante)
             .Where(e => e.Activo)
@@ -624,28 +624,28 @@ public class HolaMundoController : ControllerBase
             {
                 IdParticipante = g.Key,
                 Participante = g.First().Participante.Nombre,
-                PromedioTotal = g.Average(e => (decimal)(e.Atuendo + e.Maquillaje + e.Tradiciones + e.Pasarela + e.Interaccion)),
-                PromedioAtuendo = g.Average(e => e.Atuendo),
-                PromedioMaquillaje = g.Average(e => e.Maquillaje),
-                PromedioTradiciones = g.Average(e => e.Tradiciones),
-                PromedioPasarela = g.Average(e => e.Pasarela),
-                PromedioInteraccion = g.Average(e => e.Interaccion)
+                SumaTotal = g.Sum(e => e.Total),
+                SumaAtuendo = g.Sum(e => e.Atuendo),
+                SumaMaquillaje = g.Sum(e => e.Maquillaje),
+                SumaTradiciones = g.Sum(e => e.Tradiciones),
+                SumaPasarela = g.Sum(e => e.Pasarela),
+                SumaInteraccion = g.Sum(e => e.Interaccion)
             })
-            .OrderByDescending(r => r.PromedioTotal)
+            .OrderByDescending(r => r.SumaTotal)
             .ToListAsync();
 
         return rankings.Select((r, index) => new
         {
             idParticipante = r.IdParticipante,
             participante = r.Participante,
-            puntaje = Math.Round(r.PromedioTotal, 1),
+            puntaje = (decimal)r.SumaTotal,
             detallePuntaje = new
             {
-                atuendo = Math.Round(r.PromedioAtuendo, 1),
-                maquillaje = Math.Round(r.PromedioMaquillaje, 1),
-                tradiciones = Math.Round(r.PromedioTradiciones, 1),
-                pasarela = Math.Round(r.PromedioPasarela, 1),
-                interaccion = Math.Round(r.PromedioInteraccion, 1)
+                atuendo = (decimal)r.SumaAtuendo,
+                maquillaje = (decimal)r.SumaMaquillaje,
+                tradiciones = (decimal)r.SumaTradiciones,
+                pasarela = (decimal)r.SumaPasarela,
+                interaccion = (decimal)r.SumaInteraccion
             },
             ordenRanking = index + 1
         }).Cast<object>().ToList();

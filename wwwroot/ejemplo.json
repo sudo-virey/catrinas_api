@@ -1,0 +1,70 @@
+{
+    "votacionEnCurso": null,
+    "participantes": [
+        {
+            "idParticipante": 1,
+            "participante": "Ana García Martínez",
+            "estado": 1,
+            "orden": 1
+        },
+        {
+            "idParticipante": 2,
+            "participante": "Luis Rodríguez López",
+            "estado": 1,
+            "orden": 2
+        },
+        {
+            "idParticipante": 3,
+            "participante": "Carmen Flores Sánchez",
+            "estado": 1,
+            "orden": 3
+        },
+        {
+            "idParticipante": 4,
+            "participante": "Jorge Hernández Vega",
+            "estado": 1,
+            "orden": 4
+        },
+        {
+            "idParticipante": 5,
+            "participante": "María Isabel Jiménez",
+            "estado": 1,
+            "orden": 5
+        },
+        {
+            "idParticipante": 6,
+            "participante": "Carlos Eduardo Morales",
+            "estado": 1,
+            "orden": 6
+        },
+        {
+            "idParticipante": 7,
+            "participante": "Sofia Alejandra Ruiz",
+            "estado": 1,
+            "orden": 7
+        },
+        {
+            "idParticipante": 8,
+            "participante": "Ricardo Daniel Torres",
+            "estado": 1,
+            "orden": 8
+        },
+        {
+            "idParticipante": 9,
+            "participante": "Alejandra Beatriz Luna",
+            "estado": 1,
+            "orden": 9
+        },
+        {
+            "idParticipante": 10,
+            "participante": "Fernando Javier Castro",
+            "estado": 1,
+            "orden": 10
+        }
+    ],
+    "ranking": [],
+    "ajustes": {
+        "tiempoVotacion": 30,
+        "terminado": false
+    }
+}
