@@ -59,6 +59,7 @@
                 <button class="btn-admin" onclick="iniciarVotacion()">🚀 Iniciar Votación</button>
                 <button class="btn-admin" onclick="finalizarVotacion()">🏁 Finalizar Votación</button>
                 <button class="btn-admin" onclick="cancelarVotacion()">❌ Cancelar Votación</button>
+                <button class="btn-admin" onclick="publicarResultados()">📢 Publicar Resultados</button>
             </div>
             
             <div>
@@ -255,6 +256,20 @@
                 // Actualizar el campo de tiempo de votación para próximas votaciones
                 document.getElementById('tiempoVotacion').value = data.nuevoTiempo;
             });
+
+            adminConnection.on('PublicacionConfirmada', function (data) {
+                document.getElementById('adminData').innerHTML = 
+                    '<strong>📢 RESULTADOS PUBLICADOS:</strong><br>' + 
+                    JSON.stringify(data, null, 2);
+                addAdminMessage('Sistema', `📢 ${data.mensaje}`, 'system');
+            });
+
+            adminConnection.on('ResultadosPublicados', function (data) {
+                document.getElementById('adminData').innerHTML = 
+                    '<strong>🏆 RESULTADOS OFICIALES:</strong><br>' + 
+                    JSON.stringify(data, null, 2);
+                addAdminMessage('Sistema', `🏆 ${data.mensaje}`, 'system');
+            });
             
             adminConnection.on('Error', function (error) {
                 addAdminMessage('Sistema', '❌ Error: ' + error, 'system');
@@ -332,6 +347,13 @@
             votanteConnection.on('VotacionCancelada', function (data) {
                 addVotanteMessage('Sistema', `❌ ${data.mensaje}`, 'system');
             });
+
+            votanteConnection.on('ResultadosPublicados', function (data) {
+                document.getElementById('votanteData').innerHTML = 
+                    '<strong>🏆 RESULTADOS OFICIALES:</strong><br>' + 
+                    JSON.stringify(data, null, 2);
+                addVotanteMessage('Sistema', `🏆 ${data.mensaje}`, 'system');
+            });
             
             votanteConnection.on('NuevaVotacion', function (data) {
                 addVotanteMessage('Sistema', '🗳️ Nueva votación iniciada: ' + data.participante, 'system');
@@ -390,6 +412,14 @@
                 
                 if (confirm(`¿Estás seguro de que deseas cambiar el tiempo global de votación a ${nuevoTiempo} segundos? Esto creará un nuevo registro de configuración.`)) {
                     await adminConnection.invoke('ActualizarTiempoVotacion', nuevoTiempo);
+                }
+            }
+        }
+
+        async function publicarResultados() {
+            if (adminConnection) {
+                if (confirm('¿Estás seguro de que deseas publicar los resultados oficialmente? Esta acción no se puede deshacer y impedirá futuros cambios en la configuración.')) {
+                    await adminConnection.invoke('PublicarResultados');
                 }
             }
         }

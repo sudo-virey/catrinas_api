@@ -866,6 +866,93 @@ public class ChatHub : Hub
         }
     }
 
+    /// <summary>
+    /// ADMIN: Publicar resultados - cambiar Publicacion_Resultados a true en el ajuste activo
+    /// </summary>
+    [Authorize(Roles = "Administrador")]
+    public async Task PublicarResultados()
+    {
+        try
+        {
+            // Verificar si hay una votación en curso
+            var votacionEnCurso = await _context.Participantes
+                .AnyAsync(p => p.Id_Estado == 2); // Estado 2 = En Votación
+
+            if (votacionEnCurso)
+            {
+                await Clients.Caller.SendAsync("Error", "No se pueden publicar resultados mientras hay una votación en curso");
+                return;
+            }
+
+            // Obtener el ajuste activo actual
+            var ajusteActual = await _context.Ajustes
+                .Where(a => a.Activo)
+                .FirstOrDefaultAsync();
+
+            if (ajusteActual == null)
+            {
+                await Clients.Caller.SendAsync("Error", "No se encontró un ajuste activo");
+                return;
+            }
+
+            // Verificar si ya están publicados los resultados
+            if (ajusteActual.Publicacion_Resultados)
+            {
+                await Clients.Caller.SendAsync("Error", "Los resultados ya están publicados");
+                return;
+            }
+
+            // Cambiar Publicacion_Resultados a true
+            ajusteActual.Publicacion_Resultados = true;
+            await _context.SaveChangesAsync();
+
+            // Obtener el ranking final para incluir en la notificación
+            var rankingFinal = await _context.Participantes
+                .Where(p => p.Id_Estado == 3) // Solo participantes calificados
+                .Select(p => new
+                {
+                    IdParticipante = p.Id_Participante,
+                    Participante = p.Nombre,
+                    SumaTotal = _context.Evaluaciones
+                        .Where(e => e.Id_Participante == p.Id_Participante && e.Activo)
+                        .Sum(e => e.Total),
+                    NumeroEvaluaciones = _context.Evaluaciones
+                        .Where(e => e.Id_Participante == p.Id_Participante && e.Activo)
+                        .Count()
+                })
+                .OrderByDescending(p => p.SumaTotal)
+                .ToListAsync();
+
+            // Notificar a todos los usuarios conectados sobre la publicación
+            await Clients.All.SendAsync("ResultadosPublicados", new
+            {
+                fechaPublicacion = DateTime.Now,
+                ajusteId = ajusteActual.Id_Ajuste,
+                ranking = rankingFinal,
+                totalParticipantes = rankingFinal.Count,
+                mensaje = "¡Los resultados han sido publicados oficialmente!"
+            });
+
+            // Notificar específicamente a administradores
+            await Clients.Group("Administradores").SendAsync("PublicacionConfirmada", new
+            {
+                fechaPublicacion = DateTime.Now,
+                ajusteId = ajusteActual.Id_Ajuste,
+                tiempoVotacion = ajusteActual.Tiempo_de_Votacion,
+                mensaje = "Resultados publicados exitosamente"
+            });
+
+            // Actualizar datos del dashboard para administradores
+            var adminDataActualizada = await GetAdminDashboardData();
+            await Clients.Group("Administradores").SendAsync("DashboardDataAdmin", adminDataActualizada);
+
+        }
+        catch (Exception ex)
+        {
+            await Clients.Caller.SendAsync("Error", $"Error publicando resultados: {ex.Message}");
+        }
+    }
+
     // ===== EVENTOS DE CONEXIÓN =====
 
     public override async Task OnConnectedAsync()
