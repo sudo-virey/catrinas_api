@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Externo - Catrinas API</title>
+    <script src="https://unpkg.com/@microsoft/signalr@7.0.11/dist/browser/signalr.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .step { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .input-group { margin: 10px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 8px; margin-bottom: 10px; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .success { background: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .error { background: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .code { background: #f8f9fa; padding: 15px; border-radius: 5px; font-family: monospace; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎭 Frontend Externo - Catrinas API</h1>
+        <p>Ejemplo completo de conexión desde un frontend externo</p>
+
+        <!-- PASO 1: OBTENER TOKEN JWT -->
+        <div class="step">
+            <h2>📝 Paso 1: Obtener Token JWT</h2>
+            <div class="input-group">
+                <label>Código de Acceso (6 dígitos):</label>
+                <input type="text" id="accessCode" placeholder="Ej: JUE001" maxlength="6">
+            </div>
+            <button onclick="obtenerToken()">🔑 Obtener Token</button>
+            <div id="tokenResult"></div>
+        </div>
+
+        <!-- PASO 2: CONECTAR SIGNALR -->
+        <div class="step">
+            <h2>🔌 Paso 2: Conectar SignalR</h2>
+            <button onclick="conectarSignalR()" id="connectBtn" disabled>📡 Conectar WebSocket</button>
+            <div id="connectionStatus"></div>
+        </div>
+
+        <!-- PASO 3: ENVIAR VOTO -->
+        <div class="step">
+            <h2>🗳️ Paso 3: Enviar Voto</h2>
+            <div id="votingForm" style="display: none;">
+                <div class="input-group">
+                    <label>Atuendo (1-5):</label>
+                    <select id="atuendo">
+                        <option value="1">1 - Muy malo</option>
+                        <option value="2">2 - Malo</option>
+                        <option value="3">3 - Regular</option>
+                        <option value="4">4 - Bueno</option>
+                        <option value="5">5 - Excelente</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Maquillaje (1-5):</label>
+                    <select id="maquillaje">
+                        <option value="1">1 - Muy malo</option>
+                        <option value="2">2 - Malo</option>
+                        <option value="3">3 - Regular</option>
+                        <option value="4">4 - Bueno</option>
+                        <option value="5">5 - Excelente</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Tradiciones (1-5):</label>
+                    <select id="tradiciones">
+                        <option value="1">1 - Muy malo</option>
+                        <option value="2">2 - Malo</option>
+                        <option value="3">3 - Regular</option>
+                        <option value="4">4 - Bueno</option>
+                        <option value="5">5 - Excelente</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Pasarela (1-5):</label>
+                    <select id="pasarela">
+                        <option value="1">1 - Muy malo</option>
+                        <option value="2">2 - Malo</option>
+                        <option value="3">3 - Regular</option>
+                        <option value="4">4 - Bueno</option>
+                        <option value="5">5 - Excelente</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Interacción (1-5):</label>
+                    <select id="interaccion">
+                        <option value="1">1 - Muy malo</option>
+                        <option value="2">2 - Malo</option>
+                        <option value="3">3 - Regular</option>
+                        <option value="4">4 - Bueno</option>
+                        <option value="5">5 - Excelente</option>
+                    </select>
+                </div>
+                <button onclick="enviarVoto()">🗳️ ENVIAR VOTO</button>
+            </div>
+            <div id="voteResult"></div>
+        </div>
+
+        <!-- CÓDIGO DE EJEMPLO -->
+        <div class="step">
+            <h2>💻 Código JavaScript de Ejemplo</h2>
+            <div class="code">
+<pre>
+// 1. OBTENER TOKEN JWT
+async function obtenerToken() {
+    const response = await fetch('http://localhost:5001/api/validar-acceso', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuario: 'JUE001' })
+    });
+    const data = await response.json();
+    return data.token;
+}
+
+// 2. CONECTAR SIGNALR
+const connection = new signalR.HubConnectionBuilder()
+    .withUrl("http://localhost:5001/chatHub", {
+        accessTokenFactory: () => jwtToken
+    })
+    .build();
+
+// 3. ENVIAR VOTO
+await connection.invoke('EnviarVoto', 5, 4, 5, 3, 4);
+
+// 4. ESCUCHAR RESPUESTAS
+connection.on('VotoConfirmado', (data) => {
+    console.log('Voto confirmado:', data);
+});
+</pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let jwtToken = null;
+        let connection = null;
+        const API_BASE = 'http://localhost:5001';
+
+        // PASO 1: Obtener Token JWT
+        async function obtenerToken() {
+            const accessCode = document.getElementById('accessCode').value.trim();
+            
+            if (!accessCode) {
+                document.getElementById('tokenResult').innerHTML = '<div class="error">Por favor ingresa un código de acceso</div>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/validar-acceso`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        usuario: accessCode
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    jwtToken = data.token;
+                    
+                    document.getElementById('tokenResult').innerHTML = `
+                        <div class="success">
+                            ✅ Token JWT obtenido correctamente<br>
+                            <strong>Rol:</strong> ${data.rol}<br>
+                            <strong>Token:</strong> ${data.token.substring(0, 50)}...
+                        </div>
+                    `;
+                    
+                    document.getElementById('connectBtn').disabled = false;
+                } else {
+                    const error = await response.text();
+                    document.getElementById('tokenResult').innerHTML = `<div class="error">❌ Error: ${error}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('tokenResult').innerHTML = `<div class="error">❌ Error de conexión: ${error.message}</div>`;
+            }
+        }
+
+        // PASO 2: Conectar SignalR
+        async function conectarSignalR() {
+            if (!jwtToken) {
+                document.getElementById('connectionStatus').innerHTML = '<div class="error">Primero debes obtener un token JWT</div>';
+                return;
+            }
+
+            try {
+                connection = new signalR.HubConnectionBuilder()
+                    .withUrl(`${API_BASE}/chatHub`, {
+                        accessTokenFactory: () => jwtToken
+                    })
+                    .build();
+
+                // Configurar eventos
+                connection.on('NuevaVotacionParaVotar', function (data) {
+                    document.getElementById('connectionStatus').innerHTML += `
+                        <div class="success">🚀 Nueva votación disponible: ${data.participante}</div>
+                    `;
+                    document.getElementById('votingForm').style.display = 'block';
+                });
+
+                connection.on('VotoConfirmado', function (data) {
+                    document.getElementById('voteResult').innerHTML = `
+                        <div class="success">
+                            ✅ <strong>Voto confirmado para ${data.participante}</strong><br>
+                            Atuendo: ${data.criterios.atuendo} | Maquillaje: ${data.criterios.maquillaje} | 
+                            Tradiciones: ${data.criterios.tradiciones} | Pasarela: ${data.criterios.pasarela} | 
+                            Interacción: ${data.criterios.interaccion}<br>
+                            <strong>Puntuación final: ${data.puntosFinal}/10</strong><br>
+                            ${data.mensaje}
+                        </div>
+                    `;
+                });
+
+                connection.on('Error', function (error) {
+                    document.getElementById('voteResult').innerHTML = `<div class="error">❌ Error: ${error}</div>`;
+                });
+
+                connection.on('VotacionTerminada', function (data) {
+                    document.getElementById('connectionStatus').innerHTML += `
+                        <div class="success">🏁 Votación terminada para: ${data.participante}</div>
+                    `;
+                    document.getElementById('votingForm').style.display = 'none';
+                });
+
+                // Conectar
+                await connection.start();
+                
+                document.getElementById('connectionStatus').innerHTML = `
+                    <div class="success">✅ Conectado correctamente al WebSocket</div>
+                `;
+
+            } catch (error) {
+                document.getElementById('connectionStatus').innerHTML = `
+                    <div class="error">❌ Error conectando WebSocket: ${error.message}</div>
+                `;
+            }
+        }
+
+        // PASO 3: Enviar Voto
+        async function enviarVoto() {
+            if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
+                document.getElementById('voteResult').innerHTML = '<div class="error">Debes estar conectado para votar</div>';
+                return;
+            }
+
+            try {
+                const atuendo = parseInt(document.getElementById('atuendo').value);
+                const maquillaje = parseInt(document.getElementById('maquillaje').value);
+                const tradiciones = parseInt(document.getElementById('tradiciones').value);
+                const pasarela = parseInt(document.getElementById('pasarela').value);
+                const interaccion = parseInt(document.getElementById('interaccion').value);
+
+                document.getElementById('voteResult').innerHTML = '<div>🔄 Enviando voto...</div>';
+
+                await connection.invoke('EnviarVoto', atuendo, maquillaje, tradiciones, pasarela, interaccion);
+
+            } catch (error) {
+                document.getElementById('voteResult').innerHTML = `<div class="error">❌ Error enviando voto: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

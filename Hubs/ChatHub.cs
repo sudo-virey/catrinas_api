@@ -723,6 +723,73 @@ public class ChatHub : Hub
         }
     }
 
+    /// <summary>
+    /// ADMIN: Cancelar votación actual - volver participante a estado Registrado y desactivar evaluaciones
+    /// </summary>
+    [Authorize(Roles = "Administrador")]
+    public async Task CancelarVotacion()
+    {
+        try
+        {
+            var participanteEnVotacion = await _context.Participantes
+                .Where(p => p.Id_Estado == 2) // En Votación
+                .FirstOrDefaultAsync();
+
+            if (participanteEnVotacion == null)
+            {
+                await Clients.Caller.SendAsync("Error", "No hay votación activa para cancelar");
+                return;
+            }
+
+            // Cambiar estado a Registrado (estado 1)
+            participanteEnVotacion.Id_Estado = 1;
+
+            // Desactivar todas las evaluaciones existentes para este participante (poner Activo = false)
+            var evaluaciones = await _context.Evaluaciones
+                .Where(e => e.Id_Participante == participanteEnVotacion.Id_Participante && e.Activo)
+                .ToListAsync();
+
+            foreach (var evaluacion in evaluaciones)
+            {
+                evaluacion.Activo = false;
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Remover de votaciones en curso
+            _votacionesEnCurso.Remove(participanteEnVotacion.Id_Participante);
+
+            // Contar votos que se desactivaron
+            var votosDesactivados = evaluaciones.Count;
+
+            // Notificar a administradores
+            await Clients.Group("Administradores").SendAsync("VotacionCancelada", new
+            {
+                participante = participanteEnVotacion.Nombre,
+                idParticipante = participanteEnVotacion.Id_Participante,
+                votosDesactivados = votosDesactivados,
+                timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                mensaje = $"Votación cancelada para {participanteEnVotacion.Nombre}. {votosDesactivados} votos fueron desactivados."
+            });
+
+            // Notificar a votantes que la votación fue cancelada
+            await Clients.Group("Votantes").SendAsync("VotacionCancelada", new
+            {
+                participante = participanteEnVotacion.Nombre,
+                mensaje = "La votación ha sido cancelada por el administrador."
+            });
+
+            // Actualizar datos del dashboard para administradores
+            var adminDataActualizada = await GetAdminDashboardData();
+            await Clients.Group("Administradores").SendAsync("DashboardDataAdmin", adminDataActualizada);
+
+        }
+        catch (Exception ex)
+        {
+            await Clients.Caller.SendAsync("Error", $"Error cancelando votación: {ex.Message}");
+        }
+    }
+
     // ===== EVENTOS DE CONEXIÓN =====
 
     public override async Task OnConnectedAsync()

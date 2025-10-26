@@ -58,6 +58,7 @@
                 <button class="btn-admin" onclick="requestAdminRanking()">🏆 Solicitar Ranking Admin</button>
                 <button class="btn-admin" onclick="iniciarVotacion()">🚀 Iniciar Votación</button>
                 <button class="btn-admin" onclick="finalizarVotacion()">🏁 Finalizar Votación</button>
+                <button class="btn-admin" onclick="cancelarVotacion()">❌ Cancelar Votación</button>
             </div>
             
             <div>
@@ -230,6 +231,13 @@
                     JSON.stringify(data, null, 2);
                 addAdminMessage('Sistema', `✅ Votación finalizada: ${data.participante}`, 'system');
             });
+
+            adminConnection.on('VotacionCancelada', function (data) {
+                document.getElementById('adminData').innerHTML = 
+                    '<strong>❌ VOTACIÓN CANCELADA:</strong><br>' + 
+                    JSON.stringify(data, null, 2);
+                addAdminMessage('Sistema', `❌ ${data.mensaje}`, 'system');
+            });
             
             adminConnection.on('Error', function (error) {
                 addAdminMessage('Sistema', '❌ Error: ' + error, 'system');
@@ -303,6 +311,10 @@
             votanteConnection.on('VotacionTerminada', function (data) {
                 addVotanteMessage('Sistema', `🏁 ${data.mensaje}`, 'system');
             });
+
+            votanteConnection.on('VotacionCancelada', function (data) {
+                addVotanteMessage('Sistema', `❌ ${data.mensaje}`, 'system');
+            });
             
             votanteConnection.on('NuevaVotacion', function (data) {
                 addVotanteMessage('Sistema', '🗳️ Nueva votación iniciada: ' + data.participante, 'system');
@@ -339,6 +351,14 @@
         async function finalizarVotacion() {
             if (adminConnection) {
                 await adminConnection.invoke('FinalizarVotacion');
+            }
+        }
+
+        async function cancelarVotacion() {
+            if (adminConnection) {
+                if (confirm('¿Estás seguro de que deseas cancelar la votación actual? Esta acción cambiará el participante a estado Registrado y desactivará todos los votos.')) {
+                    await adminConnection.invoke('CancelarVotacion');
+                }
             }
         }
         
