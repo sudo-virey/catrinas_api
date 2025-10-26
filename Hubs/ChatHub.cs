@@ -854,13 +854,13 @@ public class ChatHub : Hub
         // Obtener todos los participantes
         var participantes = await _context.Participantes
             .Include(p => p.Estado)
-            .OrderBy(p => p.Id_Participante)
+            .OrderBy(p => p.Orden)
             .Select(p => new
             {
                 idParticipante = p.Id_Participante,
                 participante = p.Nombre,
                 estado = p.Id_Estado,
-                orden = p.Id_Participante
+                orden = p.Orden
             })
             .ToListAsync();
 
@@ -908,13 +908,13 @@ public class ChatHub : Hub
         // Obtener todos los participantes
         var participantes = await context.Participantes
             .Include(p => p.Estado)
-            .OrderBy(p => p.Id_Participante)
+            .OrderBy(p => p.Orden)
             .Select(p => new
             {
                 idParticipante = p.Id_Participante,
                 participante = p.Nombre,
                 estado = p.Id_Estado,
-                orden = p.Id_Participante
+                orden = p.Orden
             })
             .ToListAsync();
 

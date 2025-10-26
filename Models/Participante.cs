@@ -16,6 +16,9 @@ public class Participante
     public int Id_Estado { get; set; }
     
     [Required]
+    public int Orden { get; set; } = 1;
+    
+    [Required]
     public bool Activo { get; set; } = true;
     
     // Navegación

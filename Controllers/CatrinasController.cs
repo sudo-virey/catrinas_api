@@ -469,13 +469,13 @@ public class CatrinasController : ControllerBase
             // Obtener todos los participantes con su estado
             var participantes = await _context.Participantes
                 .Include(p => p.Estado)
-                .OrderBy(p => p.Id_Participante)
+                .OrderBy(p => p.Orden)
                 .Select(p => new
                 {
                     idParticipante = p.Id_Participante,
                     participante = p.Nombre,
                     estado = p.Id_Estado,
-                    orden = p.Id_Participante // Usar ID como orden por defecto
+                    orden = p.Orden // Usar columna Orden de la tabla
                 })
                 .ToListAsync();
 
