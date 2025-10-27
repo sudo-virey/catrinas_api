@@ -25,8 +25,7 @@ public class ChatHub : Hub
     }
 
     // Clase para almacenar datos de votación en curso
-    private class VotacionEnCurso
-    {
+    private class VotacionEnCurso {
         public int IdParticipante { get; set; }
         public string Participante { get; set; } = string.Empty;
         public long TiempoInicio { get; set; }
@@ -955,8 +954,7 @@ public class ChatHub : Hub
 
     // ===== EVENTOS DE CONEXIÓN =====
 
-    public override async Task OnConnectedAsync()
-    {
+    public override async Task OnConnectedAsync(){
         var userName = Context.User?.Identity?.Name ?? "Usuario";
         var userRole = Context.User?.FindFirst(ClaimTypes.Role)?.Value;
         var accessType = Context.User?.FindFirst("AccessType")?.Value;
@@ -993,18 +991,15 @@ public class ChatHub : Hub
             .Where(p => p.Id_Estado == 2) // En Votación
             .FirstOrDefaultAsync();
 
-        if (participanteEnVotacion != null)
-        {
+        if (participanteEnVotacion != null){
             // Hay una votación activa, notificar según el tipo de usuario
-            if (userRole == "Administrador")
-            {
+            if (userRole == "Administrador"){
                 // Datos completos para administrador
                 var datosVotacionAdmin = _votacionesEnCurso.ContainsKey(participanteEnVotacion.Id_Participante) 
                     ? _votacionesEnCurso[participanteEnVotacion.Id_Participante] 
                     : null;
 
-                await Clients.Caller.SendAsync("VotacionActivaDetectada", new
-                {
+                await Clients.Caller.SendAsync("VotacionActivaDetectada", new{
                     esAdmin = true,
                     idParticipante = participanteEnVotacion.Id_Participante,
                     participante = participanteEnVotacion.Nombre,
@@ -1012,9 +1007,7 @@ public class ChatHub : Hub
                     tiempoDuracion = datosVotacionAdmin?.TiempoDuracion,
                     mensaje = $"Votación activa detectada para: {participanteEnVotacion.Nombre}"
                 });
-            }
-            else if (userRole == "Publico" && accessType == "Votacion")
-            {
+            } else if (userRole == "Publico" && accessType == "Votacion"){
                 // Datos limitados para votante
                 var datosVotacionVotante = _votacionesEnCurso.ContainsKey(participanteEnVotacion.Id_Participante) 
                     ? _votacionesEnCurso[participanteEnVotacion.Id_Participante] 
@@ -1061,16 +1054,14 @@ public class ChatHub : Hub
 
     // ===== MÉTODOS PRIVADOS PARA OBTENER DATOS =====
 
-    private async Task<object> GetAdminDashboardData()
-    {
+    private async Task<object> GetAdminDashboardData(){
         // Obtener votación en curso desde el diccionario en memoria
         var participanteEnVotacion = await _context.Participantes
             .Where(p => p.Id_Estado == 2) // En Espera (votación activa)
             .FirstOrDefaultAsync();
 
         object? votacionEnCurso = null;
-        if (participanteEnVotacion != null && _votacionesEnCurso.ContainsKey(participanteEnVotacion.Id_Participante))
-        {
+        if (participanteEnVotacion != null && _votacionesEnCurso.ContainsKey(participanteEnVotacion.Id_Participante)){
             var datosVotacion = _votacionesEnCurso[participanteEnVotacion.Id_Participante];
             votacionEnCurso = new
             {

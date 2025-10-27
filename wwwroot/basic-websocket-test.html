@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basic WebSocket Tester</title>
+    <style>
+        body { 
+            font-family: monospace; 
+            margin: 20px; 
+            background: #000; 
+            color: #00ff00; 
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+        }
+        .section { 
+            margin: 20px 0; 
+            border: 1px solid #333; 
+            padding: 15px; 
+        }
+        .section h3 { 
+            margin-top: 0; 
+            color: #ffffff; 
+        }
+        input, textarea, button { 
+            font-family: monospace; 
+            margin: 5px; 
+            padding: 8px; 
+            background: #111; 
+            color: #00ff00; 
+            border: 1px solid #333; 
+        }
+        button { 
+            cursor: pointer; 
+            background: #333; 
+            color: #ffffff; 
+        }
+        button:hover { 
+            background: #555; 
+        }
+        .console { 
+            background: #000; 
+            border: 1px solid #333; 
+            height: 400px; 
+            overflow-y: auto; 
+            padding: 10px; 
+            font-size: 12px; 
+            white-space: pre-wrap; 
+        }
+        .status { 
+            padding: 10px; 
+            margin: 10px 0; 
+        }
+        .connected { 
+            background: #001100; 
+            color: #00ff00; 
+        }
+        .disconnected { 
+            background: #110000; 
+            color: #ff0000; 
+        }
+        #jsonInput { 
+            width: 100%; 
+            height: 100px; 
+            resize: vertical; 
+        }
+        #jwtToken { 
+            width: 100%; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Basic WebSocket Tester</h1>
+        
+        <!-- Sección de Autenticación -->
+        <div class="section">
+            <h3>Authentication</h3>
+            
+            <!-- Login rápido -->
+            <div style="margin-bottom: 10px;">
+                <h4>Quick Login (Optional)</h4>
+                <input type="text" id="username" placeholder="Usuario" style="width: 200px; margin-right: 10px;">
+                <input type="password" id="password" placeholder="Password" style="width: 200px; margin-right: 10px;">
+                <button onclick="doLogin()">Login & Get Token</button>
+            </div>
+            
+            <!-- Token manual -->
+            <div>
+                <label>JWT Token:</label><br>
+                <input type="text" id="jwtToken" placeholder="Pegar JWT token aquí o usar login arriba...">
+            </div>
+            <div>
+                <button onclick="connect()">Connect</button>
+                <button onclick="disconnect()">Disconnect</button>
+                <button onclick="getUserInfo()">Get User Info</button>
+            </div>
+            <div id="status" class="status disconnected">DISCONNECTED</div>
+        </div>
+
+        <!-- Sección de Envío de Mensajes -->
+        <div class="section">
+            <h3>Send JSON Message</h3>
+            <textarea id="jsonInput" placeholder='{"type": "test", "message": "Hello World"}'></textarea><br>
+            <button onclick="sendMessage()">Send JSON</button>
+            <button onclick="clearInput()">Clear</button>
+            <button onclick="insertTestMessage()">Insert Test JSON</button>
+        </div>
+
+        <!-- Console de Respuestas -->
+        <div class="section">
+            <h3>Server Responses</h3>
+            <button onclick="clearConsole()">Clear Console</button>
+            <div id="console" class="console"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/@microsoft/signalr@latest/dist/browser/signalr.min.js"></script>
+    <script>
+        let connection = null;
+
+        // Función para hacer login y obtener token
+        async function doLogin() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            
+            if (!username || !password) {
+                logToConsole('ERROR: Username and password are required');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        Usuario: username,
+                        Password: password
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.accesoPermitido && result.token) {
+                    document.getElementById('jwtToken').value = result.token;
+                    logToConsole('LOGIN SUCCESS: Token obtained for user ' + result.nombre);
+                    logToConsole('TOKEN: ' + result.token.substring(0, 50) + '...');
+                } else {
+                    logToConsole('LOGIN FAILED: ' + result.mensaje);
+                }
+            } catch (error) {
+                logToConsole('LOGIN ERROR: ' + error.message);
+            }
+        }
+
+        async function connect() {
+            const token = document.getElementById('jwtToken').value.trim();
+            
+            if (!token) {
+                logToConsole('ERROR: JWT Token is required');
+                return;
+            }
+
+            try {
+                // Crear conexión con token JWT
+                connection = new signalR.HubConnectionBuilder()
+                    .withUrl('/basicHub?access_token=' + encodeURIComponent(token))
+                    .withAutomaticReconnect()
+                    .build();
+
+                // Configurar handlers para recibir mensajes
+                connection.on('ServerResponse', function (jsonResponse) {
+                    logToConsole(jsonResponse);
+                });
+
+                // Conectar
+                await connection.start();
+                
+                document.getElementById('status').className = 'status connected';
+                document.getElementById('status').textContent = 'CONNECTED';
+                
+            } catch (error) {
+                document.getElementById('status').className = 'status disconnected';
+                document.getElementById('status').textContent = 'CONNECTION FAILED: ' + error.message;
+                logToConsole('CONNECTION ERROR: ' + error.message);
+            }
+        }
+
+        async function disconnect() {
+            if (connection) {
+                try {
+                    await connection.stop();
+                    connection = null;
+                    document.getElementById('status').className = 'status disconnected';
+                    document.getElementById('status').textContent = 'DISCONNECTED';
+                    logToConsole('CONNECTION: Disconnected');
+                } catch (error) {
+                    logToConsole('DISCONNECT ERROR: ' + error.message);
+                }
+            }
+        }
+
+        async function sendMessage() {
+            if (!connection) {
+                logToConsole('ERROR: Not connected to WebSocket');
+                return;
+            }
+
+            const jsonText = document.getElementById('jsonInput').value.trim();
+            
+            if (!jsonText) {
+                logToConsole('ERROR: Empty message, Not sent');
+                return;
+            }
+
+            try {
+                // Validar que sea JSON válido antes de enviar
+                JSON.parse(jsonText);
+                
+                logToConsole('SENDING: ' + jsonText);
+                await connection.invoke('SendMessage', jsonText);
+                
+            } catch (error) {
+                if (error instanceof SyntaxError) {
+                    logToConsole('ERROR: Invalid JSON format - ' + error.message);
+                } else {
+                    logToConsole('SEND ERROR: ' + error.message);
+                }
+            }
+        }
+
+        async function getUserInfo() {
+            if (!connection) {
+                logToConsole('ERROR: Not connected to WebSocket');
+                return;
+            }
+
+            try {
+                await connection.invoke('GetUserInfo');
+                logToConsole('COMMAND: GetUserInfo sent');
+            } catch (error) {
+                logToConsole('GET USER INFO ERROR: ' + error.message);
+            }
+        }
+
+        function logToConsole(message) {
+            const console = document.getElementById('console');
+            const timestamp = new Date().toISOString();
+            console.textContent += `${message}\n`;
+            console.scrollTop = console.scrollHeight;
+        }
+
+        function clearConsole() {
+            document.getElementById('console').textContent = '';
+        }
+
+        function clearInput() {
+            document.getElementById('jsonInput').value = '';
+        }
+
+        function insertTestMessage() {
+            const testMessage = {
+                type: "test_message",
+                timestamp: new Date().toISOString(),
+                data: {
+                    message: "Hello from client",
+                    number: 42,
+                    boolean: true,
+                    array: [1, 2, 3]
+                }
+            };
+            document.getElementById('jsonInput').value = JSON.stringify(testMessage, null, 2);
+        }
+
+        // Permitir enviar con Ctrl+Enter
+        document.getElementById('jsonInput').addEventListener('keydown', function (e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Auto-focus en el token al cargar
+        window.onload = function() {
+            document.getElementById('jwtToken').focus();
+        }
+    </script>
+</body>
+</html>

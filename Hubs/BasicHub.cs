@@ -1,0 +1,1175 @@
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.Authorization;
+using System.Text.Json;
+using System.Security.Claims;
+using CatrinasAPI.Data;
+using Microsoft.EntityFrameworkCore;
+using System.Text.Encodings.Web;
+
+namespace CatrinasAPI.Hubs;
+
+// Clase para manejar votaciones en curso
+public class VotacionEnCurso
+{
+    public int IdParticipante { get; set; }
+    public string Participante { get; set; } = "";
+    public long TiempoInicio { get; set; }
+    public int TiempoDuracion { get; set; }
+}
+
+[Authorize] // Requiere autenticación JWT
+public class BasicHub : Hub {
+
+    private readonly CatrinasDbContext _context;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
+    private readonly IHubContext<ChatHub> _hubContext;
+    private readonly ILogger<BasicHub> _logger;
+
+    private static readonly Dictionary<int, VotacionEnCurso> _votacionesEnCurso = new();
+    private static readonly Dictionary<string, List<string>> _userConnections = new();
+
+    // Configuración JSON para preservar acentos
+    private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = false
+    };
+
+
+    public BasicHub(CatrinasDbContext context, IServiceScopeFactory serviceScopeFactory, IHubContext<ChatHub> hubContext, ILogger<BasicHub> logger){
+        _context = context;
+        _serviceScopeFactory = serviceScopeFactory;
+        _hubContext = hubContext;
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// Método genérico para recibir cualquier mensaje JSON
+    /// </summary>
+    public async Task SendMessage(string jsonMessage){
+        try{
+            // Validar que el usuario esté autenticado
+            if (!Context.User?.Identity?.IsAuthenticated ?? true){
+                var authError = new {
+                    type = "error",
+                    timestamp = DateTime.UtcNow,
+                    error = "unauthorized",
+                    message = "User not authenticated"
+                };
+                await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(authError, JsonOptions));
+                return;
+            }
+
+            // Parsear el JSON para validar que sea válido
+            var messageObject = JsonSerializer.Deserialize<JsonElement>(jsonMessage);
+            
+            // Obtener información del usuario
+            var userName = Context.User?.Identity?.Name ?? "Usuario";
+            var userRole = Context.User?.FindFirst(ClaimTypes.Role)?.Value;
+
+            _logger.LogInformation($"[BASIC HUB] Mensaje recibido de {userName}: {jsonMessage}");
+
+            // Verificar si el mensaje tiene un campo "command" o "comando" para procesar comandos específicos
+            if (messageObject.TryGetProperty("command", out var commandElement) || 
+                messageObject.TryGetProperty("comando", out commandElement)) {
+                var command = commandElement.GetString();
+                await ProcessCommand(command, messageObject, userName, userRole);
+                return;
+            }
+
+            // Si no es un comando, procesar como mensaje genérico
+            var response = new {
+                type = "error",
+                timestamp = DateTime.UtcNow,
+                 message = "Message not recognized"
+            };
+
+            // Enviar respuesta solo al cliente que envió el mensaje
+            await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(response, JsonOptions));
+        } catch (JsonException ex) {
+            // Error si el JSON no es válido
+            _logger.LogWarning($"[BASIC HUB] JSON inválido de {Context.User?.Identity?.Name}: {ex.Message}");
+            var errorResponse = new {
+                type = "error",
+                timestamp = DateTime.UtcNow,
+                message = ex.Message
+            };
+
+            await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(errorResponse, JsonOptions));
+        } catch (Exception ex){
+            // Error general
+            _logger.LogError($"[BASIC HUB] Error general en SendMessage: {ex.Message}");
+            var errorResponse = new {
+                type = "error",
+                timestamp = DateTime.UtcNow,
+                message = ex.Message
+            };
+
+            await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(errorResponse, JsonOptions));
+        }
+    }
+
+    /// <summary>
+    /// Procesa comandos específicos enviados a través de JSON
+    /// </summary>
+    private async Task ProcessCommand(string? command, JsonElement messageObject, string userName, string? userRole){
+        try {
+            switch (command?.ToLower())
+            {
+                case "get_dashboard":
+                case "get_dashboard_data":
+                    await SendRoleBasedResponse();
+                    break;
+
+                case "get_participants":
+                case "get_participantes":
+                    await ProcessGetParticipants();
+                    break;
+
+                case "get_ranking":
+                    await ProcessGetRanking();
+                    break;
+
+                case "get_voting_status":
+                case "get_estado_votacion":
+                    await ProcessGetVotingStatus();
+                    break;
+
+                case "vote":
+                case "votar":
+                    await ProcessVote(messageObject);
+                    break;
+
+                case "help":
+                case "ayuda":
+                    await SendHelpMessage();
+                    break;
+
+                // Nuevos comandos con estructura específica
+                case "ajustes":
+                    await ProcessAjustes(messageObject);
+                    break;
+
+                case "iniciar_votacion":
+                    await ProcessParticipanteCommand(messageObject);
+                    break;
+
+                default:
+                    var unknownResponse = new
+                    {
+                        type = "unknown_command",
+                        message = $"Comando desconocido: '{command}'. Envía {{'command': 'help'}} para ver comandos disponibles.",
+                        receivedCommand = command
+                    };
+                    await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(unknownResponse, JsonOptions));
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"[BASIC HUB] Error procesando comando '{command}': {ex.Message}");
+            var errorResponse = new
+            {
+                type = "command_error",
+                timestamp = DateTime.UtcNow,
+                error = "command_processing_error",
+                command = command,
+                message = ex.Message
+            };
+            await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(errorResponse, JsonOptions));
+        }
+    }
+
+    /// <summary>
+    /// Método para obtener información del usuario conectado (diferenciada por rol)
+    /// </summary>
+    public async Task GetUserInfo()
+    {
+        try
+        {
+            // Validar que el usuario esté autenticado
+            if (!Context.User?.Identity?.IsAuthenticated ?? true)
+            {
+                var authError = new
+                {
+                    type = "error",
+                    timestamp = DateTime.UtcNow,
+                    error = "unauthorized",
+                    message = "User not authenticated"
+                };
+                await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(authError, JsonOptions));
+                return;
+            }
+
+            var claims = Context.User?.Claims?.ToDictionary(c => c.Type, c => c.Value) ?? new Dictionary<string, string>();
+            
+            _logger.LogInformation($"[BASIC HUB] Info de usuario solicitada: {Context.User?.Identity?.Name}");
+
+            // Enviar respuesta diferenciada por rol con información del usuario
+            await SendRoleBasedResponse();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"[BASIC HUB] Error al obtener info de usuario: {ex.Message}");
+            var errorResponse = new
+            {
+                type = "error",
+                timestamp = DateTime.UtcNow,
+                error = "user_info_error",
+                message = ex.Message
+            };
+
+            await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(errorResponse, JsonOptions));
+        }
+    }
+
+    /// <summary>
+    /// Método para obtener datos del dashboard (respuesta según rol)
+    /// </summary>
+    public async Task GetDashboardData()
+    {
+        try {
+            // Validar que el usuario esté autenticado
+            if (!Context.User?.Identity?.IsAuthenticated ?? true){
+                var authError = new {
+                    type = "error",
+                    timestamp = DateTime.UtcNow,
+                    error = "unauthorized",
+                    message = "User not authenticated"
+                };
+                await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(authError, JsonOptions));
+                return;
+            }
+
+            _logger.LogInformation($"[BASIC HUB] Datos de dashboard solicitados por: {Context.User?.Identity?.Name}");
+
+            // Enviar respuesta diferenciada por rol
+            await SendRoleBasedResponse();
+        } catch (Exception ex){
+            _logger.LogError($"[BASIC HUB] Error al obtener datos de dashboard: {ex.Message}");
+            var errorResponse = new
+            {
+                type = "error",
+                timestamp = DateTime.UtcNow,
+                error = "dashboard_error",
+                message = ex.Message
+            };
+
+            await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(errorResponse, JsonOptions));
+        }
+    }
+
+    public override async Task OnConnectedAsync() {
+        try {
+            var userName = Context.User?.Identity?.Name ?? "Usuario";
+            var userRole = Context.User?.FindFirst(ClaimTypes.Role)?.Value;
+            var isAuthenticated = Context.User?.Identity?.IsAuthenticated ?? false;
+
+            // Desconectar conexiones anteriores del mismo usuario
+            if (_userConnections.ContainsKey(userName))
+            {
+                var oldConnections = _userConnections[userName].ToList();
+                foreach (var oldConnectionId in oldConnections)
+                {
+                    if (oldConnectionId != Context.ConnectionId)
+                    {
+                        try
+                        {
+                            await Clients.Client(oldConnectionId).SendAsync("ServerResponse", JsonSerializer.Serialize(new
+                            {
+                                type = "connection_replaced",
+                                timestamp = DateTime.UtcNow,
+                                message = "Nueva conexión establecida desde otro lugar"
+                            }, JsonOptions));
+                            
+                            _logger.LogInformation($"[BASIC HUB] Desconectando conexión anterior: {oldConnectionId} para usuario {userName}");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning($"[BASIC HUB] Error al notificar conexión anterior: {ex.Message}");
+                        }
+                    }
+                }
+                _userConnections[userName].Clear();
+            }
+            else
+            {
+                _userConnections[userName] = new List<string>();
+            }
+
+            // Agregar la nueva conexión
+            _userConnections[userName].Add(Context.ConnectionId);
+
+            // Agregar a grupos según el rol
+            if (userRole == "Administrador"){
+                await Groups.AddToGroupAsync(Context.ConnectionId, "Administradores");
+            }
+            else if (userRole == "votante" || userRole == "Publico"){
+                await Groups.AddToGroupAsync(Context.ConnectionId, "Votantes");
+            }
+
+            _logger.LogInformation($"[BASIC HUB] Usuario conectado: {userName} (ID: {Context.ConnectionId}) - Rol: {userRole} - Autenticado: {isAuthenticated}");
+
+            // Enviar respuesta diferenciada por rol
+            await SendRoleBasedResponse();
+            await base.OnConnectedAsync();
+        }
+        catch (Exception ex) {
+            _logger.LogError($"[BASIC HUB] Error en conexión: {ex.Message}");
+            throw;
+        }
+    }
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        try
+        {
+            var userName = Context.User?.Identity?.Name ?? "Usuario";
+            
+            // Remover la conexión del diccionario
+            if (_userConnections.ContainsKey(userName))
+            {
+                _userConnections[userName].Remove(Context.ConnectionId);
+                if (_userConnections[userName].Count == 0)
+                {
+                    _userConnections.Remove(userName);
+                }
+            }
+            
+            _logger.LogInformation($"[BASIC HUB] Usuario desconectado: {userName} (ID: {Context.ConnectionId})");
+
+            if (exception != null)
+            {
+                _logger.LogError($"[BASIC HUB] Error en desconexión: {exception.Message}");
+            }
+
+            await base.OnDisconnectedAsync(exception);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"[BASIC HUB] Error al procesar desconexión: {ex.Message}");
+            await base.OnDisconnectedAsync(exception);
+        }
+    }
+
+
+    // ===== MÉTODOS PRIVADOS PARA OBTENER DATOS =====
+
+    private async Task<object> GetAdminDashboardData() {
+        try {
+            // Obtener votación en curso desde el diccionario en memoria
+            var participanteEnVotacion = await _context.Participantes
+                .Where(p => p.Id_Estado == 2) // En Espera (votación activa)
+                .FirstOrDefaultAsync();
+
+            object? votacionEnCurso = null;
+            if (participanteEnVotacion != null && _votacionesEnCurso.ContainsKey(participanteEnVotacion.Id_Participante)){
+                var datosVotacion = _votacionesEnCurso[participanteEnVotacion.Id_Participante];
+                votacionEnCurso = new {
+                    idParticipante = datosVotacion.IdParticipante,
+                    participante = datosVotacion.Participante,
+                    tiempoInicio = datosVotacion.TiempoInicio,
+                    tiempoDuracion = datosVotacion.TiempoDuracion
+                };
+            }
+
+            // Obtener todos los participantes
+            var participantes = await _context.Participantes
+                .Include(p => p.Estado)
+                .OrderBy(p => p.Orden)
+                .Select(p => new
+                {
+                    idParticipante = p.Id_Participante,
+                    participante = p.Nombre,
+                    estado = p.Id_Estado,
+                    orden = p.Orden
+                })
+                .ToListAsync();
+
+            // Obtener ranking completo
+            var ranking = await GetAdminRanking();
+
+            // Obtener ajustes
+            var ultimoAjuste = await _context.Ajustes
+                .OrderByDescending(a => a.Id_Ajuste)
+                .FirstOrDefaultAsync();
+
+            return new {
+                 votacionEnCurso = votacionEnCurso,
+                    participantes = participantes,
+                    ranking = ranking,
+                    ajustes = new
+                    {
+                        tiempoVotacion = ultimoAjuste?.Tiempo_de_Votacion ?? 300,
+                        terminado = ultimoAjuste?.Publicacion_Resultados ?? false
+                    }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"[BASIC HUB] Error al obtener datos de dashboard admin: {ex.Message}");
+            return new
+            {
+                type = "error",
+                timestamp = DateTime.UtcNow,
+                error = "dashboard_data_error",
+                message = ex.Message
+            };
+        }
+    }
+
+    private async Task<object> GetAdminRanking()
+    {
+        try
+        {
+            var ranking = await _context.Rankings.Select(p => new
+            {
+                IdParticipante = p.Id_Participante,
+                Participante = p.Participante.Nombre,
+                Puntaje = p.Puntos
+            }).OrderByDescending(p => p.Puntaje)
+                .ToListAsync();
+
+            // Agregar orden de ranking después de obtener los datos
+            return ranking.Select((item, index) => new {
+                OrdenRanking = index + 1,
+                IdParticipante = item.IdParticipante,
+                Participante = item.Participante,
+                Puntaje = item.Puntaje,
+                detallePuntaje = new {
+                    atuendo = 0,
+                    maquillaje = 0,
+                    tradiciones = 0,
+                    pasarela = 0,
+                    interaccion = 0
+                }
+            }).ToList();
+        } catch (Exception ex){
+            _logger.LogError($"[BASIC HUB] Error al obtener ranking: {ex.Message}");
+            return new List<object>();
+        }
+    }
+
+    private async Task<object> GetVotanteData(){
+        try {
+
+            // Verificar si el evento está marcado como terminado
+            var ultimoAjuste = await _context.Ajustes
+                .Where(a => a.Activo == true)
+                .OrderByDescending(a => a.Id_Ajuste)
+                .FirstOrDefaultAsync();
+
+            if (ultimoAjuste?.Publicacion_Resultados ?? false) {
+                return new
+                {
+                    type = "error",
+                    concursoTerminado = true,
+                    votacionEnCurso = false,
+                    mensaje = "El concurso ha finalizado. Ya no es posible votar."
+                };
+            }
+
+            // Obtener participante en votación actual
+            var participanteEnVotacion = await _context.Participantes
+                .Where(p => p.Id_Estado == 2) // En Espera (votación activa)
+                .FirstOrDefaultAsync();    
+
+            if (participanteEnVotacion == null) {
+                return new {
+                    type = "success",
+                    timestamp = DateTime.UtcNow,
+                    concursoTerminado = false,
+                    votacionEnCurso = false,
+                    mensaje = "No hay ninguna votación activa en este momento."
+                };
+            }
+
+            return new {
+                type = "votante_data",
+                timestamp = DateTime.UtcNow,
+                concursoTerminado = false,
+                votacionEnCurso = true,
+                detallesVotacionEnCurso = new {
+                    idParticipante = participanteEnVotacion.Id_Participante,
+                    participante = participanteEnVotacion.Nombre,
+                    mensaje = $"Puedes votar por {participanteEnVotacion.Nombre}",
+                    tiempoInicio = _votacionesEnCurso[participanteEnVotacion.Id_Participante].TiempoInicio,
+                    tiempoDuracion = _votacionesEnCurso[participanteEnVotacion.Id_Participante].TiempoDuracion,
+                    tiempoTranscurrido = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _votacionesEnCurso[participanteEnVotacion.Id_Participante].TiempoInicio,
+                    tiempoRestante = Math.Max(0, _votacionesEnCurso[participanteEnVotacion.Id_Participante].TiempoDuracion - (DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _votacionesEnCurso[participanteEnVotacion.Id_Participante].TiempoInicio))   
+                }
+            };
+        } catch (Exception ex) {
+            _logger.LogError($"[BASIC HUB] Error al obtener datos de votante: {ex.Message}");
+            return new
+            {
+                type = "error",
+                message = ex.Message
+            };
+        }
+    }
+
+    /// <summary>
+    /// Envía respuesta diferenciada según el rol del usuario
+    /// </summary>
+    private async Task SendRoleBasedResponse(){
+        try{
+            var userRole = Context.User?.FindFirst(ClaimTypes.Role)?.Value;
+            var userName = Context.User?.Identity?.Name ?? "Usuario";
+
+            object responseData;
+
+            switch (userRole?.ToLower()){
+                case "administrador":
+                    var adminData = await GetAdminDashboardData();
+                    await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(adminData, JsonOptions));
+                    break;
+                case "votante":
+                case "publico":
+                    var votanteData = await GetVotanteData();
+                    await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(votanteData, JsonOptions));
+                    break;
+                default:
+                    responseData = new {
+                        timestamp = DateTime.UtcNow,
+                        message = "Acceso denegado o rol no reconocido:" + userRole?.ToLower(),
+                    };
+                    await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(responseData, JsonOptions));
+                    break;
+            }
+        } catch (Exception ex) {
+            _logger.LogError($"[BASIC HUB] Error en SendRoleBasedResponse: {ex.Message}");
+            var errorResponse = new {
+                type = "error",
+                timestamp = DateTime.UtcNow,
+                error = "role_response_error",
+                message = ex.Message
+            };
+            await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(errorResponse, JsonOptions));
+        }
+    }
+
+    // ===== MÉTODOS PARA PROCESAR COMANDOS JSON =====
+
+    private async Task ProcessGetParticipants()
+    {
+        try
+        {
+            var participantes = await _context.Participantes
+                .Include(p => p.Estado)
+                .OrderBy(p => p.Orden)
+                .Select(p => new
+                {
+                    idParticipante = p.Id_Participante,
+                    participante = p.Nombre,
+                    estado = p.Id_Estado,
+                    orden = p.Orden
+                })
+                .ToListAsync();
+
+            var response = new
+            {
+                type = "participants_list",
+                timestamp = DateTime.UtcNow,
+                data = participantes
+            };
+
+            await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(response, JsonOptions));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"[BASIC HUB] Error al obtener participantes: {ex.Message}");
+            var errorResponse = new
+            {
+                type = "error",
+                timestamp = DateTime.UtcNow,
+                error = "participants_error",
+                message = ex.Message
+            };
+            await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(errorResponse, JsonOptions));
+        }
+    }
+
+    private async Task ProcessGetRanking()
+    {
+        try
+        {
+            var userRole = Context.User?.FindFirst(ClaimTypes.Role)?.Value;
+            
+            if (userRole?.ToLower() == "administrador")
+            {
+                var ranking = await GetAdminRanking();
+                var response = new
+                {
+                    type = "admin_ranking",
+                    timestamp = DateTime.UtcNow,
+                    data = ranking
+                };
+                await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(response, JsonOptions));
+            }
+            else
+            {
+                var response = new
+                {
+                    type = "access_denied",
+                    timestamp = DateTime.UtcNow,
+                    message = "Solo los administradores pueden ver el ranking completo."
+                };
+                await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(response, JsonOptions));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"[BASIC HUB] Error al obtener ranking: {ex.Message}");
+            var errorResponse = new
+            {
+                type = "error",
+                timestamp = DateTime.UtcNow,
+                error = "ranking_error",
+                message = ex.Message
+            };
+            await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(errorResponse, JsonOptions));
+        }
+    }
+
+    private async Task ProcessGetVotingStatus()
+    {
+        try
+        {
+            var participanteEnVotacion = await _context.Participantes
+                .Where(p => p.Id_Estado == 2) // En Espera (votación activa)
+                .FirstOrDefaultAsync();
+
+            var response = new
+            {
+                type = "voting_status",
+                timestamp = DateTime.UtcNow,
+                data = new
+                {
+                    hayVotacionActiva = participanteEnVotacion != null,
+                    participanteActual = participanteEnVotacion != null ? new
+                    {
+                        idParticipante = participanteEnVotacion.Id_Participante,
+                        nombre = participanteEnVotacion.Nombre,
+                        orden = participanteEnVotacion.Orden
+                    } : null
+                }
+            };
+
+            await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(response, JsonOptions));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"[BASIC HUB] Error al obtener estado de votación: {ex.Message}");
+            var errorResponse = new
+            {
+                type = "error",
+                timestamp = DateTime.UtcNow,
+                error = "voting_status_error",
+                message = ex.Message
+            };
+            await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(errorResponse, JsonOptions));
+        }
+    }
+
+    private async Task ProcessVote(JsonElement messageObject) {
+        try {
+            var userRole = Context.User?.FindFirst(ClaimTypes.Role)?.Value;
+            
+            if (userRole?.ToLower() != "votante" && userRole?.ToLower() != "publico") {
+                var response = new {
+                    type = "access_denied",
+                    timestamp = DateTime.UtcNow,
+                    message = "Solo los votantes y jueces pueden enviar votos."
+                };
+                await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(response, JsonOptions));
+                return;
+            }
+
+            // Aquí implementarías la lógica de votación
+            // Por ahora, solo confirmamos recepción
+            var response2 = new  {
+                type = "vote_received",
+                timestamp = DateTime.UtcNow,
+                message = "Voto recibido correctamente (funcionalidad pendiente de implementar)",
+                data = JsonSerializer.Deserialize<object>(messageObject.GetRawText())
+            };
+
+            await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(response2, JsonOptions));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"[BASIC HUB] Error al procesar voto: {ex.Message}");
+            var errorResponse = new
+            {
+                type = "error",
+                timestamp = DateTime.UtcNow,
+                error = "vote_error",
+                message = ex.Message
+            };
+            await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(errorResponse, JsonOptions));
+        }
+    }
+
+    private async Task SendHelpMessage()
+    {
+        try
+        {
+            var userRole = Context.User?.FindFirst(ClaimTypes.Role)?.Value;
+            var commands = new List<object>();
+
+            // Comandos básicos para todos
+            commands.Add(new { command = "get_user_info", description = "Obtener información del usuario actual" });
+            commands.Add(new { command = "get_participants", description = "Obtener lista de participantes" });
+            commands.Add(new { command = "get_voting_status", description = "Obtener estado actual de votación" });
+            commands.Add(new { command = "help", description = "Mostrar esta ayuda" });
+
+            // Comandos específicos por rol
+            if (userRole?.ToLower() == "administrador")
+            {
+                commands.Add(new { command = "get_dashboard", description = "Obtener datos completos del dashboard (solo admin)" });
+                commands.Add(new { command = "get_ranking", description = "Obtener ranking completo (solo admin)" });
+                commands.Add(new { command = "start_voting", description = "Iniciar votación (solo admin)" });
+                commands.Add(new { comando = "ajustes", description = "Modificar ajustes del evento (solo admin)" });
+                commands.Add(new { comando = "participante", description = "Iniciar/cancelar votación de participante (solo admin)" });
+            }
+            else if (userRole?.ToLower() == "votante" || userRole?.ToLower() == "publico")
+            {
+                commands.Add(new { command = "vote", description = "Enviar voto (solo votantes/jueces)" });
+            }
+
+            var response = new
+            {
+                type = "help_message",
+                timestamp = DateTime.UtcNow,
+                user = new { role = userRole },
+                message = "Comandos disponibles para tu rol:",
+                commands = commands,
+                example = new
+                {
+                    format = "Envía mensajes JSON con el campo 'command' o 'comando'",
+                    sample = new { command = "get_user_info" },
+                    ajustesExample = new { comando = "ajustes", tiempoVotacion = 300, terminado = false },
+                    participanteExample = new { comando = "participante", iniciarVotacion = true, idParticipante = 1 }
+                }
+            };
+
+            await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(response, JsonOptions));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"[BASIC HUB] Error al enviar mensaje de ayuda: {ex.Message}");
+            var errorResponse = new
+            {
+                type = "error",
+                timestamp = DateTime.UtcNow,
+                error = "help_error",
+                message = ex.Message
+            };
+            await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(errorResponse, JsonOptions));
+        }
+    }
+
+    /// Procesa el comando de ajustes enviado por un administrador
+    private async Task ProcessAjustes(JsonElement messageObject)
+    {
+        try
+        {
+            var userRole = Context.User?.FindFirst(ClaimTypes.Role)?.Value;
+
+            // Si no es administrador, denegar acceso
+            if (userRole?.ToLower() != "administrador")
+            {
+                await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(new
+                {
+                    type = "access_denied",
+                    message = "No cuenta con permisos para realizar esta acción."
+                }, JsonOptions));
+                return;
+            }
+
+            // Extraer datos de ajustes
+            var tiempoVotacion = messageObject.TryGetProperty("tiempoVotacion", out var tiempoElement) ? tiempoElement.GetInt32() : 300;
+            var terminado = messageObject.TryGetProperty("terminado", out var terminadoElement) ? terminadoElement.GetBoolean() : false;
+
+            // Marcar todos los ajustes existentes como inactivos (activo = 0)
+            var ajustesExistentes = await _context.Ajustes.ToListAsync();
+            foreach (var ajuste in ajustesExistentes)
+            {
+                ajuste.Activo = false;
+            }
+
+            // Crear un nuevo registro de ajuste que será el único activo
+            var nuevoAjuste = new CatrinasAPI.Models.Ajuste
+            {
+                Tiempo_de_Votacion = tiempoVotacion,
+                Publicacion_Resultados = terminado,
+                Fecha = DateTime.UtcNow,
+                Activo = true // Marcar como activo
+            };
+
+            _context.Ajustes.Add(nuevoAjuste);
+            await _context.SaveChangesAsync();
+
+
+            var adminData = await GetAdminDashboardData();
+
+            // Notificar a otros administradores del cambio
+            await Clients.Group("Administradores").SendAsync("ServerResponse", JsonSerializer.Serialize(adminData, JsonOptions));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"[BASIC HUB] Error al procesar ajustes: {ex.Message}");
+            await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(new
+            {
+                type = "error",
+                message = ex.Message
+            }, JsonOptions));
+        }
+    }
+
+    private async Task ProcessParticipanteCommand(JsonElement messageObject) {
+        try {
+            var userRole = Context.User?.FindFirst(ClaimTypes.Role)?.Value;
+            
+            if (userRole?.ToLower() != "administrador"){
+                var accessDeniedResponse = new {
+                    type = "access_denied",
+                    timestamp = DateTime.UtcNow,
+                    message = "No cuenta con permisos para realizar esta acción."
+                };
+                await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(accessDeniedResponse, JsonOptions));
+                return;
+            }
+
+            // Extraer datos del participante
+            var iniciarVotacion = messageObject.TryGetProperty("iniciarVotacion", out var iniciarElement) 
+                ? iniciarElement.GetBoolean() : false;
+            var idParticipante = messageObject.TryGetProperty("idParticipante", out var idElement) 
+                ? idElement.GetInt32() : 0;
+
+            if (idParticipante <= 0) {
+                await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(new{
+                    type = "error",
+                    message = "ID de participante inválido"
+                }, JsonOptions));
+                return;
+            }
+
+            // Buscar el participante
+            var participante = await _context.Participantes
+                .FirstOrDefaultAsync(p => p.Id_Participante == idParticipante);
+
+            if (participante == null) {
+                await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize( new {
+                    type = "error",
+                    message = "Participante no encontrado"
+                }, JsonOptions));
+                return;
+            }
+
+            if (iniciarVotacion) {
+                // Iniciar votación: cambiar estado a "En Espera" (2)
+                participante.Id_Estado = 2;
+                
+                // Obtener tiempo de votación de ajustes
+                var ultimoAjuste = await _context.Ajustes
+                    .Where(a => a.Activo == true)
+                    .OrderByDescending(a => a.Id_Ajuste)
+                    .FirstOrDefaultAsync();
+                
+                var tiempoDuracion = ultimoAjuste?.Tiempo_de_Votacion ?? 300;
+                
+                // Agregar al diccionario de votaciones en curso
+                _votacionesEnCurso[idParticipante] = new VotacionEnCurso{
+                    IdParticipante = idParticipante,
+                    Participante = participante.Nombre,
+                    TiempoInicio = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                    TiempoDuracion = tiempoDuracion
+                };
+                 await _context.SaveChangesAsync();
+                // Iniciar cuenta regresiva en segundo plano
+                _ = Task.Run(async () => await IniciarCuentaRegresiva(idParticipante, participante.Nombre, tiempoDuracion));
+            } else {
+                // Cancelar votación: cambiar estado a "Registrado" (1)
+                participante.Id_Estado = 1;
+                
+                // Desactivar todas las evaluaciones de este participante
+                var evaluacionesParticipante = await _context.Evaluaciones
+                    .Where(e => e.Id_Participante == idParticipante)
+                    .ToListAsync();
+                
+                foreach (var evaluacion in evaluacionesParticipante)
+                {
+                    evaluacion.Activo = false;
+                }
+
+                // Remover del diccionario de votaciones en curso
+                _votacionesEnCurso.Remove(idParticipante);
+
+                await _context.SaveChangesAsync();
+                 
+                
+           
+                // Notificar a otros administradores del cambio
+                await Clients.Group("Administradores").SendAsync("ServerResponse", JsonSerializer.Serialize(await GetAdminDashboardData(), JsonOptions));
+                
+                // Notificar a todos los votantes del cambio
+                await Clients.Group("Votantes").SendAsync("ServerResponse", JsonSerializer.Serialize(await GetVotanteData(), JsonOptions));
+
+            }
+
+        } catch (Exception ex)  {
+            _logger.LogError($"[BASIC HUB] Error al procesar comando de participante: {ex.Message}");
+            await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(new {
+                type = "error",
+                message = ex.Message
+            }, JsonOptions));
+        }
+    }
+
+    /// <summary>
+    /// Maneja la cuenta regresiva de la votación, enviando actualizaciones cada segundo
+    /// </summary>
+    private async Task IniciarCuentaRegresiva(int idParticipante, string nombreParticipante, int tiempoDuracion)
+    {
+        try
+        {
+            _logger.LogInformation($"[BASIC HUB] Iniciando cuenta regresiva para participante {idParticipante} ({nombreParticipante}) por {tiempoDuracion} segundos");
+            var tiempoRestante = tiempoDuracion;
+
+            // Enviar actualizaciones de cuenta regresiva cada segundo
+            while (tiempoRestante > 0){
+                await Task.Delay(1000); // Esperar 1 segundo
+                tiempoRestante--;
+
+                _logger.LogInformation($"[BASIC HUB] Tiempo restante: {tiempoRestante} segundos para participante {idParticipante}");
+
+                // Verificar si la votación aún está activa (puede haber sido finalizada o cancelada manualmente)
+                if (!_votacionesEnCurso.ContainsKey(idParticipante)){
+                    _logger.LogInformation($"[BASIC HUB] Votación ya finalizada/cancelada manualmente para participante {idParticipante}");
+                    break; // Salir si la votación fue finalizada/cancelada manualmente
+                }
+
+                try {
+                    // Crear un nuevo scope para acceder a los servicios de SignalR de forma segura
+                    using (var scope = _serviceScopeFactory.CreateScope())
+                    {
+                        var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<BasicHub>>();
+                        
+                        // Crear mensaje de cuenta regresiva para administradores
+                        var adminMessage = new {
+                            type = "cuenta_regresiva",
+                            timestamp = DateTime.UtcNow,
+                            idParticipante = idParticipante,
+                            participante = nombreParticipante,
+                            tiempoRestante = tiempoRestante,
+                            tiempoTotal = tiempoDuracion,
+                            mensaje = $"Tiempo restante para {nombreParticipante}: {tiempoRestante} segundos"
+                        };
+
+                        // Crear mensaje de cuenta regresiva para votantes
+                        var votanteMessage = new {
+                            type = "cuenta_regresiva_votante",
+                            timestamp = DateTime.UtcNow,
+                            idParticipante = idParticipante,
+                            participante = nombreParticipante,
+                            tiempoRestante = tiempoRestante,
+                            mensaje = $"Tiempo restante para votar por {nombreParticipante}: {tiempoRestante} segundos"
+                        };
+
+                        // Enviar a administradores usando el contexto independiente
+                        await hubContext.Clients.Group("Administradores").SendAsync("ServerResponse", JsonSerializer.Serialize(adminMessage, JsonOptions));
+                        
+                        // Enviar a votantes usando el contexto independiente
+                        await hubContext.Clients.Group("Votantes").SendAsync("ServerResponse", JsonSerializer.Serialize(votanteMessage, JsonOptions));
+                    }
+
+                    _logger.LogInformation($"[BASIC HUB] Cuenta regresiva enviada: {tiempoRestante}s restantes");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"[BASIC HUB] Error enviando cuenta regresiva: {ex.Message}");
+                }
+            }
+
+            // Finalizar votación automáticamente si llegó a 0 y aún está activa
+            if (tiempoRestante <= 0 && _votacionesEnCurso.ContainsKey(idParticipante))
+            {
+                _logger.LogInformation($"[BASIC HUB] Tiempo agotado para participante {idParticipante}, finalizando automáticamente");
+                await FinalizarVotacionAutomatica(idParticipante);
+                
+                // Enviar datos actualizados del dashboard después de finalizar
+                try 
+                {
+                    using (var scope = _serviceScopeFactory.CreateScope())
+                    {
+                        var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<BasicHub>>();
+                        var contextDb = scope.ServiceProvider.GetRequiredService<CatrinasDbContext>();
+                        var chatHubContext = scope.ServiceProvider.GetRequiredService<IHubContext<ChatHub>>();
+                        
+                        // Crear una instancia temporal para obtener los datos
+                        var tempHub = new BasicHub(contextDb, _serviceScopeFactory, chatHubContext, _logger);
+                        var adminDataActualizada = await tempHub.GetAdminDashboardData();
+                        var votanteDataActualizada = await tempHub.GetVotanteData();
+                        
+                        // Enviar datos actualizados
+                        await hubContext.Clients.Group("Administradores").SendAsync("ServerResponse", JsonSerializer.Serialize(adminDataActualizada, JsonOptions));
+                        await hubContext.Clients.Group("Votantes").SendAsync("ServerResponse", JsonSerializer.Serialize(votanteDataActualizada, JsonOptions));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"[BASIC HUB] Error enviando datos actualizados después de finalizar: {ex.Message}");
+                }
+            }
+            else
+            {
+                _logger.LogInformation($"[BASIC HUB] Cuenta regresiva terminada para participante {idParticipante} - votación ya finalizada manualmente");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"[BASIC HUB] Error en cuenta regresiva para participante {idParticipante}: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Finaliza automáticamente la votación cuando se agota el tiempo
+    /// </summary>
+    private async Task FinalizarVotacionAutomatica(int idParticipante)
+    {
+        try
+        {
+            _logger.LogInformation($"[BASIC HUB] Iniciando finalización automática para participante {idParticipante}");
+
+            // Crear un nuevo scope para el contexto de base de datos
+            using (var scope = _serviceScopeFactory.CreateScope())
+            {
+                var context = scope.ServiceProvider.GetRequiredService<CatrinasDbContext>();
+
+                var participanteEnVotacion = await context.Participantes
+                    .Where(p => p.Id_Participante == idParticipante && p.Id_Estado == 2) // Verificar que aún esté en votación
+                    .FirstOrDefaultAsync();
+
+                if (participanteEnVotacion == null)
+                {
+                    _logger.LogInformation($"[BASIC HUB] Participante {idParticipante} ya no está en votación - saliendo");
+                    return; // La votación ya fue finalizada manualmente
+                }
+
+                _logger.LogInformation($"[BASIC HUB] Participante {participanteEnVotacion.Nombre} encontrado, cambiando estado a Calificado");
+
+                // Cambiar estado a Calificado (3)
+                participanteEnVotacion.Id_Estado = 3;
+
+                // Calcular puntaje total para el ranking
+                var evaluaciones = await context.Evaluaciones
+                    .Where(e => e.Id_Participante == idParticipante && e.Activo)
+                    .ToListAsync();
+
+                _logger.LogInformation($"[BASIC HUB] Encontradas {evaluaciones.Count} evaluaciones para participante {idParticipante}");
+
+                decimal puntajeTotal = 0;
+                if (evaluaciones.Any())
+                {
+                    // Sumatoria de la columna Total de todas las evaluaciones
+                    puntajeTotal = evaluaciones.Sum(e => e.Total);
+                    _logger.LogInformation($"[BASIC HUB] Suma de columna Total: {puntajeTotal:F2}");
+                }
+
+                // Verificar si ya existe un registro en Ranking para este participante
+                var rankingExistente = await context.Rankings
+                    .FirstOrDefaultAsync(r => r.Id_Participante == idParticipante);
+
+                if (rankingExistente != null)
+                {
+                    // Actualizar puntaje existente
+                    rankingExistente.Puntos = Math.Round(puntajeTotal, 2);
+                    rankingExistente.FechaActualizacion = DateTime.Now;
+                    rankingExistente.Observaciones = $"Votación finalizada automáticamente - {evaluaciones.Count} votos recibidos";
+                    _logger.LogInformation($"[BASIC HUB] Actualizando ranking existente para participante {idParticipante}");
+                }
+                else
+                {
+                    // Crear nuevo registro en ranking
+                    var nuevoRanking = new CatrinasAPI.Models.Ranking
+                    {
+                        Id_Participante = idParticipante,
+                        Puntos = Math.Round(puntajeTotal, 2),
+                        FechaActualizacion = DateTime.Now,
+                        Observaciones = $"Votación finalizada automáticamente - {evaluaciones.Count} votos recibidos"
+                    };
+                    context.Rankings.Add(nuevoRanking);
+                    _logger.LogInformation($"[BASIC HUB] Creando nuevo ranking para participante {idParticipante}");
+                }
+
+                await context.SaveChangesAsync();
+                _logger.LogInformation($"[BASIC HUB] Cambios guardados en base de datos");
+
+                // Remover de votaciones en curso
+                _votacionesEnCurso.Remove(idParticipante);
+                _logger.LogInformation($"[BASIC HUB] Removido de votaciones en curso. Votaciones activas: {_votacionesEnCurso.Count}");
+            }
+
+            // Notificar finalización automática a administradores y votantes usando scope independiente
+            try
+            {
+                using (var notificationScope = _serviceScopeFactory.CreateScope())
+                {
+                    var hubContext = notificationScope.ServiceProvider.GetRequiredService<IHubContext<BasicHub>>();
+                    
+                    // Notificar finalización automática a administradores
+                    var finalizacionMessage = new {
+                        type = "votacion_finalizada_automaticamente",
+                        timestamp = DateTime.UtcNow,
+                        idParticipante = idParticipante,
+                        mensaje = "Votación finalizada automáticamente por tiempo agotado"
+                    };
+
+                    // Notificar a votantes que terminó
+                    var votanteFinMessage = new {
+                        type = "votacion_terminada",
+                        timestamp = DateTime.UtcNow,
+                        mensaje = "El tiempo de votación ha terminado"
+                    };
+
+                    await hubContext.Clients.Group("Administradores").SendAsync("ServerResponse", JsonSerializer.Serialize(finalizacionMessage, JsonOptions));
+                    await hubContext.Clients.Group("Votantes").SendAsync("ServerResponse", JsonSerializer.Serialize(votanteFinMessage, JsonOptions));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"[BASIC HUB] Error enviando notificaciones de finalización: {ex.Message}");
+            }
+
+            _logger.LogInformation($"[BASIC HUB] Finalización automática completada para participante {idParticipante}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"[BASIC HUB] Error en finalización automática: {ex.Message}");
+            
+            // Notificar error a administradores usando scope independiente
+            try
+            {
+                using (var errorScope = _serviceScopeFactory.CreateScope())
+                {
+                    var hubContext = errorScope.ServiceProvider.GetRequiredService<IHubContext<BasicHub>>();
+                    
+                    var errorMessage = new {
+                        type = "error_finalizacion",
+                        timestamp = DateTime.UtcNow,
+                        mensaje = $"Error al finalizar votación automáticamente: {ex.Message}"
+                    };
+                    
+                    await hubContext.Clients.Group("Administradores").SendAsync("ServerResponse", JsonSerializer.Serialize(errorMessage, JsonOptions));
+                }
+            }
+            catch (Exception notificationEx)
+            {
+                _logger.LogError($"[BASIC HUB] Error enviando notificación de error: {notificationEx.Message}");
+            }
+        }
+    }
+}

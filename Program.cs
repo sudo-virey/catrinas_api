@@ -40,8 +40,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 var accessToken = context.Request.Query["access_token"];
                 var path = context.HttpContext.Request.Path;
                 
-                // Si es una petición al hub de SignalR y hay un token
-                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/chatHub"))
+                // Si es una petición a cualquier hub de SignalR y hay un token
+                if (!string.IsNullOrEmpty(accessToken) && 
+                    (path.StartsWithSegments("/chatHub") || path.StartsWithSegments("/basicHub")))
                 {
                     context.Token = accessToken;
                 }
@@ -64,7 +65,13 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // Configurar servicios de WebSocket y SignalR
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(options =>
+{
+    // Aumentar timeout para evitar desconexiones frecuentes
+    options.ClientTimeoutInterval = TimeSpan.FromMinutes(5); // Default: 30 segundos
+    options.KeepAliveInterval = TimeSpan.FromMinutes(2); // Default: 15 segundos
+    options.HandshakeTimeout = TimeSpan.FromSeconds(30); // Default: 15 segundos
+});
 
 // Configurar CORS para WebSockets
 builder.Services.AddCors(options =>
@@ -133,5 +140,6 @@ app.MapControllers();
 
 // Configurar WebSockets - AHORA ACTIVO
 app.MapHub<CatrinasAPI.Hubs.ChatHub>("/chatHub");
+app.MapHub<CatrinasAPI.Hubs.BasicHub>("/basicHub");
 
 app.Run();
