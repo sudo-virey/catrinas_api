@@ -20,6 +20,13 @@ public class Ranking
     [MaxLength(500)]
     public string? Observaciones { get; set; }
     
+    // Columnas para totales por categoría
+    public int TotalAtuendo { get; set; } = 0;
+    public int TotalMaquillaje { get; set; } = 0;
+    public int TotalTradiciones { get; set; } = 0;
+    public int TotalPasarela { get; set; } = 0;
+    public int TotalInteraccion { get; set; } = 0;
+    
     // Relación con Participante
     [ForeignKey("Id_Participante")]
     public virtual Participante Participante { get; set; } = null!;
