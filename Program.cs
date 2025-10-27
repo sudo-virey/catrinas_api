@@ -117,10 +117,17 @@ if (app.Environment.IsDevelopment())
 app.UseSwagger(c =>
 {
     c.RouteTemplate = "swagger/{documentName}/swagger.json";
+    c.PreSerializeFilters.Add((swaggerDoc, httpReq) =>
+    {
+        swaggerDoc.Servers = new List<Microsoft.OpenApi.Models.OpenApiServer>
+        {
+            new Microsoft.OpenApi.Models.OpenApiServer { Url = $"{httpReq.Scheme}://{httpReq.Host}{httpReq.PathBase}" }
+        };
+    });
 });
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Catrinas API V1");
+    c.SwaggerEndpoint("/CATRINAS_API/swagger/v1/swagger.json", "Catrinas API V1");
     c.RoutePrefix = "swagger";
     c.DocumentTitle = "Catrinas API - Documentación";
 });
