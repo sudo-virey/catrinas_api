@@ -673,30 +673,162 @@ public class BasicHub : Hub {
         }
     }
 
-    private async Task ProcessVote(JsonElement messageObject) {
-        try {
+    private async Task ProcessVote(JsonElement messageObject)
+    {
+        try
+        {
             var userRole = Context.User?.FindFirst(ClaimTypes.Role)?.Value;
-            
-            if (userRole?.ToLower() != "votante" && userRole?.ToLower() != "publico") {
-                var response = new {
+            var idAccesoStr = Context.User?.FindFirst("IdAcceso")?.Value;
+            var accessCode = Context.User?.FindFirst("AccessCode")?.Value;
+
+            // Validar rol
+            if (userRole?.ToLower() != "publico")
+            {
+                var response = new
+                {
                     type = "access_denied",
                     timestamp = DateTime.UtcNow,
-                    message = "Solo los votantes y jueces pueden enviar votos."
+                    message = "Solo los usuarios públicos pueden enviar votos."
                 };
                 await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(response, JsonOptions));
                 return;
             }
 
-            // Aquí implementarías la lógica de votación
-            // Por ahora, solo confirmamos recepción
-            var response2 = new  {
-                type = "vote_received",
-                timestamp = DateTime.UtcNow,
-                message = "Voto recibido correctamente (funcionalidad pendiente de implementar)",
-                data = JsonSerializer.Deserialize<object>(messageObject.GetRawText())
+            // Validar que tenga ID de acceso válido
+            if (string.IsNullOrEmpty(idAccesoStr) || !int.TryParse(idAccesoStr, out var idAcceso))
+            {
+                var response = new
+                {
+                    type = "access_denied",
+                    timestamp = DateTime.UtcNow,
+                    message = "ID de acceso no válido en el token."
+                };
+                await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(response, JsonOptions));
+                return;
+            }
+
+            // Extraer datos del JSON
+            var idParticipante = messageObject.TryGetProperty("idParticipante", out var idElement) ? idElement.GetInt32() : 0;
+            var atuendo = messageObject.TryGetProperty("atuendo", out var atuendoElement) ? atuendoElement.GetInt32() : 0;
+            var maquillaje = messageObject.TryGetProperty("maquillaje", out var maquillajeElement) ? maquillajeElement.GetInt32() : 0;
+            var tradiciones = messageObject.TryGetProperty("tradiciones", out var tradicionesElement) ? tradicionesElement.GetInt32() : 0;
+            var pasarela = messageObject.TryGetProperty("pasarela", out var pasarelaElement) ? pasarelaElement.GetInt32() : 0;
+            var interaccion = messageObject.TryGetProperty("interaccion", out var interaccionElement) ? interaccionElement.GetInt32() : 0;
+
+            // Validaciones básicas
+            if (idParticipante <= 0)
+            {
+                var errorResponse = new
+                {
+                    type = "vote_error",
+                    timestamp = DateTime.UtcNow,
+                    message = "ID de participante inválido"
+                };
+                await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(errorResponse, JsonOptions));
+                return;
+            }
+
+            // Validar que todas las puntuaciones estén entre 1 y 5
+            if (atuendo < 1 || atuendo > 5 || maquillaje < 1 || maquillaje > 5 ||
+                tradiciones < 1 || tradiciones > 5 || pasarela < 1 || pasarela > 5 ||
+                interaccion < 1 || interaccion > 5)
+            {
+                var errorResponse = new
+                {
+                    type = "vote_error",
+                    timestamp = DateTime.UtcNow,
+                    message = "Todas las puntuaciones deben estar entre 1 y 5"
+                };
+                await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(errorResponse, JsonOptions));
+                return;
+            }
+
+            // Buscar participante en votación activa (estado 2)
+            var participanteEnVotacion = await _context.Participantes
+                .Where(p => p.Id_Estado == 2 && p.Id_Participante == idParticipante)
+                .FirstOrDefaultAsync();
+
+            if (participanteEnVotacion == null)
+            {
+                var errorResponse = new
+                {
+                    type = "vote_error",
+                    timestamp = DateTime.UtcNow,
+                    message = "No hay votación activa para este participante o el participante no existe"
+                };
+                await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(errorResponse, JsonOptions));
+                return;
+            }
+
+            // Verificar si ya votó este usuario por este participante
+            var votoExistente = await _context.Evaluaciones
+                .FirstOrDefaultAsync(e => e.Id_Participante == idParticipante && 
+                                         e.Id_Acceso == idAcceso && 
+                                         e.Activo);
+
+            if (votoExistente != null)
+            {
+                var errorResponse = new
+                {
+                    type = "vote_error",
+                    timestamp = DateTime.UtcNow,
+                    message = "Ya has votado por este participante"
+                };
+                await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(errorResponse, JsonOptions));
+                return;
+            }
+
+            // Calcular total usando la lógica del ChatHub
+            var totalCriterios = atuendo + maquillaje + tradiciones + pasarela + interaccion;
+            var totalPuntos = (decimal)totalCriterios * 10 / 25; // Conversión: 25 criterios = 10 puntos
+
+            // Crear nueva evaluación
+            var evaluacion = new CatrinasAPI.Models.Evaluacion
+            {
+                Id_Participante = idParticipante,
+                Id_Acceso = idAcceso,
+                Atuendo = atuendo,
+                Maquillaje = maquillaje,
+                Tradiciones = tradiciones,
+                Pasarela = pasarela,
+                Interaccion = interaccion,
+                Total = Math.Round(totalPuntos, 2),
+                Activo = true,
+                FechaEvaluacion = DateTime.Now
             };
 
-            await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(response2, JsonOptions));
+            // Guardar en base de datos
+            _context.Evaluaciones.Add(evaluacion);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation($"[BASIC HUB] Voto guardado: Usuario {accessCode} votó por participante {participanteEnVotacion.Nombre} con total {totalPuntos:F2}");
+
+            // Respuesta exitosa al votante
+            var successResponse = new
+            {
+                type = "vote_saved",
+                timestamp = DateTime.UtcNow,
+                message = "Tu voto ha sido registrado exitosamente",
+                data = new
+                {
+                    participante = participanteEnVotacion.Nombre,
+                    idParticipante = idParticipante,
+                    criterios = new
+                    {
+                        atuendo = atuendo,
+                        maquillaje = maquillaje,
+                        tradiciones = tradiciones,
+                        pasarela = pasarela,
+                        interaccion = interaccion,
+                        totalCriterios = totalCriterios
+                    },
+                    puntosFinal = Math.Round(totalPuntos, 2),
+                    fechaVoto = evaluacion.FechaEvaluacion
+                }
+            };
+
+            await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(successResponse, JsonOptions));
+
         }
         catch (Exception ex)
         {
@@ -705,7 +837,7 @@ public class BasicHub : Hub {
             {
                 type = "error",
                 timestamp = DateTime.UtcNow,
-                error = "vote_error",
+                error = "vote_processing_error",
                 message = ex.Message
             };
             await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(errorResponse, JsonOptions));
