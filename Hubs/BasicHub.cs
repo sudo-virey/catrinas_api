@@ -1175,61 +1175,33 @@ public class BasicHub : Hub {
                 await FinalizarVotacionAutomatica(idParticipante);
             } else {
                 _logger.LogInformation($"[BASIC HUB] Cuenta regresiva terminada para participante {idParticipante} - votación ya finalizada manualmente");
-            }     
-           
-                
-             // Enviar datos actualizados del dashboard después de finalizar
-            try {
-                using (var scope = _serviceScopeFactory.CreateScope()) {
+            }
+
+
+            // Enviar datos actualizados del dashboard después de finalizar
+            try
+            {
+                using (var scope = _serviceScopeFactory.CreateScope())
+                {
                     var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<BasicHub>>();
                     var contextDb = scope.ServiceProvider.GetRequiredService<CatrinasDbContext>();
                     var chatHubContext = scope.ServiceProvider.GetRequiredService<IHubContext<ChatHub>>();
-                    
+
                     // Crear una instancia temporal para obtener los datos
                     var tempHub = new BasicHub(contextDb, _serviceScopeFactory, chatHubContext, _logger);
                     var adminDataActualizada = await tempHub.GetAdminDashboardData();
                     var votanteDataActualizada = await tempHub.GetVotanteData();
-                    
+
                     // Enviar datos actualizados
                     await hubContext.Clients.Group("Administradores").SendAsync("ServerResponse", JsonSerializer.Serialize(adminDataActualizada, JsonOptions));
                     await hubContext.Clients.Group("Votantes").SendAsync("ServerResponse", JsonSerializer.Serialize(votanteDataActualizada, JsonOptions));
                 }
-            }catch (Exception ex){
+            }
+            catch (Exception ex)
+            {
                 _logger.LogError($"[BASIC HUB] Error enviando datos actualizados después de finalizar: {ex.Message}");
                 //Aqui mandar mensaje de error al administrador 
             }
-
-            // Finalizar votación automáticamente si llegó a 0 y aún está activa
-           /* if (tiempoRestante <= 0 && _votacionesEnCurso.ContainsKey(idParticipante)){
-                _logger.LogInformation($"[BASIC HUB] Tiempo agotado para participante {idParticipante}, finalizando automáticamente");
-                await FinalizarVotacionAutomatica(idParticipante);
-                
-                // Enviar datos actualizados del dashboard después de finalizar
-                try 
-                {
-                    using (var scope = _serviceScopeFactory.CreateScope())
-                    {
-                        var hubContext = scope.ServiceProvider.GetRequiredService<IHubContext<BasicHub>>();
-                        var contextDb = scope.ServiceProvider.GetRequiredService<CatrinasDbContext>();
-                        var chatHubContext = scope.ServiceProvider.GetRequiredService<IHubContext<ChatHub>>();
-                        
-                        // Crear una instancia temporal para obtener los datos
-                        var tempHub = new BasicHub(contextDb, _serviceScopeFactory, chatHubContext, _logger);
-                        var adminDataActualizada = await tempHub.GetAdminDashboardData();
-                        var votanteDataActualizada = await tempHub.GetVotanteData();
-                        
-                        // Enviar datos actualizados
-                        await hubContext.Clients.Group("Administradores").SendAsync("ServerResponse", JsonSerializer.Serialize(adminDataActualizada, JsonOptions));
-                        await hubContext.Clients.Group("Votantes").SendAsync("ServerResponse", JsonSerializer.Serialize(votanteDataActualizada, JsonOptions));
-                    }
-                }catch (Exception ex){
-                    _logger.LogError($"[BASIC HUB] Error enviando datos actualizados después de finalizar: {ex.Message}");
-                }
-            }
-            else
-            {
-                _logger.LogInformation($"[BASIC HUB] Cuenta regresiva terminada para participante {idParticipante} - votación ya finalizada manualmente");
-            }*/
         }
         catch (Exception ex)
         {
@@ -1270,10 +1242,20 @@ public class BasicHub : Hub {
                 _logger.LogInformation($"[BASIC HUB] Encontradas {evaluaciones.Count} evaluaciones para participante {idParticipante}");
 
                 decimal puntajeTotal = 0;
+                int atuendoTotal = 0;
+                int maquillajeTotal = 0;
+                int tradicionesTotal = 0;
+                int pasarelaTotal = 0;
+                int interaccionTotal = 0;
                 if (evaluaciones.Any()) {
                     // Sumatoria de la columna Total de todas las evaluaciones
                     puntajeTotal = evaluaciones.Sum(e => e.Total);
                     _logger.LogInformation($"[BASIC HUB] Suma de columna Total: {puntajeTotal:F2}");
+                    atuendoTotal = evaluaciones.Sum(e => e.Atuendo);
+                    maquillajeTotal = evaluaciones.Sum(e => e.Maquillaje);
+                    tradicionesTotal = evaluaciones.Sum(e => e.Tradiciones);
+                    pasarelaTotal = evaluaciones.Sum(e => e.Pasarela);
+                    interaccionTotal = evaluaciones.Sum(e => e.Interaccion);
                 }
 
                 // Verificar si ya existe un registro en Ranking para este participante
@@ -1282,7 +1264,12 @@ public class BasicHub : Hub {
 
                 if (rankingExistente != null) {
                     // Actualizar puntaje existente
-                    rankingExistente.Puntos = Math.Round(puntajeTotal, 2);
+                    rankingExistente.Puntos = Math.Round(puntajeTotal, 2);//Se toman solo 2 decimales
+                    rankingExistente.TotalAtuendo = atuendoTotal;
+                    rankingExistente.TotalMaquillaje = maquillajeTotal;
+                    rankingExistente.TotalTradiciones = tradicionesTotal;
+                    rankingExistente.TotalPasarela = pasarelaTotal;
+                    rankingExistente.TotalInteraccion = interaccionTotal;
                     rankingExistente.FechaActualizacion = DateTime.Now;
                     rankingExistente.Observaciones = $"Votación finalizada automáticamente - {evaluaciones.Count} votos recibidos";
                     _logger.LogInformation($"[BASIC HUB] Actualizando ranking existente para participante {idParticipante}");
@@ -1291,6 +1278,11 @@ public class BasicHub : Hub {
                     var nuevoRanking = new CatrinasAPI.Models.Ranking {
                         Id_Participante = idParticipante,
                         Puntos = Math.Round(puntajeTotal, 2),
+                        TotalAtuendo = atuendoTotal,
+                        TotalMaquillaje = maquillajeTotal,
+                        TotalTradiciones = tradicionesTotal,
+                        TotalPasarela = pasarelaTotal,
+                        TotalInteraccion = interaccionTotal,
                         FechaActualizacion = DateTime.Now,
                         Observaciones = $"Votación finalizada automáticamente - {evaluaciones.Count} votos recibidos"
                     };
@@ -1309,31 +1301,46 @@ public class BasicHub : Hub {
             }
 
             // Notificar finalización automática a administradores y votantes usando scope independiente
-            /*try {
-                using (var notificationScope = _serviceScopeFactory.CreateScope()) {
-                    var hubContext = notificationScope.ServiceProvider.GetRequiredService<IHubContext<BasicHub>>();
+            try {
+
+                // Crear instancia temporal con el contexto del scope actual
+                using var dataScope = _serviceScopeFactory.CreateScope();
+                var tempContext = dataScope.ServiceProvider.GetRequiredService<CatrinasDbContext>();
+                var tempChatHubContext = dataScope.ServiceProvider.GetRequiredService<IHubContext<ChatHub>>();
+                var tempLogger = dataScope.ServiceProvider.GetRequiredService<ILogger<BasicHub>>();
+                
+                var tempHub = new BasicHub(tempContext, _serviceScopeFactory, tempChatHubContext, tempLogger);
+                
+                // Preparar datos actualizados para administradores
+                var adminDataActualizada = await tempHub.GetAdminDashboardData();
+                var adminMessage = new {
+                    type = "dashboard_updated",
+                    timestamp = DateTime.UtcNow,
+                    reason = "voting_finished_automatically",
+                    data = adminDataActualizada
+                };
+                
+                // Preparar datos actualizados para votantes
+                var votanteDataActualizada = await tempHub.GetVotanteData();
+                var votanteMessage = new {
+                    type = "voting_status_updated", 
+                    timestamp = DateTime.UtcNow,
+                    reason = "voting_finished_automatically",
+                    data = votanteDataActualizada
+                };
+                
+                // Enviar mensajes específicos por grupo usando el hub context existente
+                using var notificationScope = _serviceScopeFactory.CreateScope();
+                var hubContext = notificationScope.ServiceProvider.GetRequiredService<IHubContext<BasicHub>>();
+                
+                await hubContext.Clients.Group("Administradores").SendAsync("ServerResponse", 
+                    JsonSerializer.Serialize(adminMessage, JsonOptions));
                     
-                    // Notificar finalización automática a administradores
-                    var finalizacionMessage = new {
-                        type = "votacion_finalizada_automaticamente",
-                        timestamp = DateTime.UtcNow,
-                        idParticipante = idParticipante,
-                        mensaje = "Votación finalizada automáticamente por tiempo agotado"
-                    };
-
-                    // Notificar a votantes que terminó
-                    var votanteFinMessage = new {
-                        type = "votacion_terminada",
-                        timestamp = DateTime.UtcNow,
-                        mensaje = "El tiempo de votación ha terminado"
-                    };
-
-                    await hubContext.Clients.Group("Administradores").SendAsync("ServerResponse", JsonSerializer.Serialize(finalizacionMessage, JsonOptions));
-                    await hubContext.Clients.Group("Votantes").SendAsync("ServerResponse", JsonSerializer.Serialize(votanteFinMessage, JsonOptions));
-                }
+                await hubContext.Clients.Group("Votantes").SendAsync("ServerResponse", 
+                    JsonSerializer.Serialize(votanteMessage, JsonOptions));
             } catch (Exception ex) {
                 _logger.LogError($"[BASIC HUB] Error enviando notificaciones de finalización: {ex.Message}");
-            }*/
+            }
 
             _logger.LogInformation($"[BASIC HUB] Finalización automática completada para participante {idParticipante}");
         }

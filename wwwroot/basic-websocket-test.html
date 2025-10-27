@@ -250,7 +250,7 @@
         function logToConsole(message) {
             const console = document.getElementById('console');
             const timestamp = new Date().toISOString();
-            console.textContent += `${message}\n`;
+            console.textContent += `${message}\n\n`;
             console.scrollTop = console.scrollHeight;
         }
 
