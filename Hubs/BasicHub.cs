@@ -760,45 +760,64 @@ public class BasicHub : Hub {
                 return;
             }
 
-            // Verificar si ya votó este usuario por este participante
-            var votoExistente = await _context.Evaluaciones
-                .FirstOrDefaultAsync(e => e.Id_Participante == idParticipante && 
-                                         e.Id_Acceso == idAcceso && 
-                                         e.Activo);
-
-            if (votoExistente != null)
-            {
-                var errorResponse = new
-                {
-                    type = "vote_error",
-                    timestamp = DateTime.UtcNow,
-                    message = "Ya has votado por este participante"
-                };
-                await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(errorResponse, JsonOptions));
-                return;
-            }
-
             // Calcular total usando la lógica del ChatHub
             var totalCriterios = atuendo + maquillaje + tradiciones + pasarela + interaccion;
             var totalPuntos = (decimal)totalCriterios * 10 / 25; // Conversión: 25 criterios = 10 puntos
 
-            // Crear nueva evaluación
-            var evaluacion = new CatrinasAPI.Models.Evaluacion
-            {
-                Id_Participante = idParticipante,
-                Id_Acceso = idAcceso,
-                Atuendo = atuendo,
-                Maquillaje = maquillaje,
-                Tradiciones = tradiciones,
-                Pasarela = pasarela,
-                Interaccion = interaccion,
-                Total = Math.Round(totalPuntos, 2),
-                Activo = true,
-                FechaEvaluacion = DateTime.Now
-            };
+            // Verificar si ya existe un registro para este Id_Participante y Id_Acceso
+            var evaluacionExistente = await _context.Evaluaciones
+                .FirstOrDefaultAsync(e => e.Id_Participante == idParticipante && e.Id_Acceso == idAcceso);
 
-            // Guardar en base de datos
-            _context.Evaluaciones.Add(evaluacion);
+            if (evaluacionExistente != null)
+            {
+                // Si existe y está activo, no permitir votar de nuevo
+                if (evaluacionExistente.Activo)
+                {
+                    var errorResponse = new
+                    {
+                        type = "vote_error",
+                        timestamp = DateTime.UtcNow,
+                        message = "Ya has votado por este participante"
+                    };
+                    await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(errorResponse, JsonOptions));
+                    return;
+                }
+
+                // Si existe pero está inactivo (Activo = 0), actualizar el registro
+                evaluacionExistente.Atuendo = atuendo;
+                evaluacionExistente.Maquillaje = maquillaje;
+                evaluacionExistente.Tradiciones = tradiciones;
+                evaluacionExistente.Pasarela = pasarela;
+                evaluacionExistente.Interaccion = interaccion;
+                evaluacionExistente.Total = Math.Round(totalPuntos, 2);
+                evaluacionExistente.Activo = true;
+                evaluacionExistente.FechaEvaluacion = DateTime.Now;
+
+                // Actualizar el registro existente
+                _context.Evaluaciones.Update(evaluacionExistente);
+            }
+            else
+            {
+                // Si no existe ningún registro, crear uno nuevo
+                evaluacionExistente = new CatrinasAPI.Models.Evaluacion
+                {
+                    Id_Participante = idParticipante,
+                    Id_Acceso = idAcceso,
+                    Atuendo = atuendo,
+                    Maquillaje = maquillaje,
+                    Tradiciones = tradiciones,
+                    Pasarela = pasarela,
+                    Interaccion = interaccion,
+                    Total = Math.Round(totalPuntos, 2),
+                    Activo = true,
+                    FechaEvaluacion = DateTime.Now
+                };
+
+                // Agregar el nuevo registro
+                _context.Evaluaciones.Add(evaluacionExistente);
+            }
+                
+            // Guardar cambios en base de datos
             await _context.SaveChangesAsync();
 
             _logger.LogInformation($"[BASIC HUB] Voto guardado: Usuario {accessCode} votó por participante {participanteEnVotacion.Nombre} con total {totalPuntos:F2}");
@@ -823,7 +842,7 @@ public class BasicHub : Hub {
                         totalCriterios = totalCriterios
                     },
                     puntosFinal = Math.Round(totalPuntos, 2),
-                    fechaVoto = evaluacion.FechaEvaluacion
+                    fechaVoto = evaluacionExistente.FechaEvaluacion
                 }
             };
 

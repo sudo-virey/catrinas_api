@@ -1,14 +1,38 @@
+
+
 {
     "Estructurapara comando ajustes":{
     "comando":"ajustes",
     "tiempoVotacion":300,  //Duracion de la votacion en segundos
     "terminado":false //Indica si el concurso ha terminado
-},
+    },
 
 
-"Estructurapara comando participante(votacion)":{
-    "comando":"participante",
-    "iniciarVotacion":true, //Indica si se debe iniciar/cancelar la votacion para el participante
-    "idParticipante":1 //ID del participante que debe afectar
-}
+    "Estructurapara comando participante(votacion)":{
+        "comando":"iniciar_votacion",
+        "iniciarVotacion":true, //Indica si se debe iniciar/cancelar la votacion para el participante
+        "idParticipante":1 //ID del participante que debe afectar
+    },
+
+    "Estructura de comando voto":{
+    "command": "vote",
+    "idParticipante": 1,
+    "atuendo": 5,
+    "maquillaje": 5,
+    "tradiciones": 5,
+    "pasarela": 5,
+    "interaccion": 5
+    }
+
+    //añadir FUNCIONint para desempatar
+    //En la tabla de ranking necesita una columna que diga "Puntos_por_desempate"  y el total de ranking se calcula como puntaje + puntos_por_desempate
+    //El enpoint debe de añadirle una fraccion de punto apra superar al participante con el qeiue empato pero menos del que esta sobre de el
+
+
+    //Cuando se termine el tiempo de votacion  quitar {"type":"dashboard_updated","timestamp":"2025-10-28T15:44:41.3476805Z","reason":"voting_finished_automatically","data":{
+
+    ///En el enpoint de vote cuando cancelas una votacion el activo pasa a 0 y si el mismo usuario que ya tiene el regsitro en 0 quiere votar marca un error, revisar el mensaje y permitir votar si existe
+
+
+    //En el endpoint de ajustes cuando se envie terminado=true  debe  actuaizarle el mensaje al cliente
 }
