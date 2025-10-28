@@ -927,23 +927,30 @@ public class BasicHub : Hub
             var commands = new List<object>();
 
             // Comandos básicos para todos
-            commands.Add(new { command = "get_user_info", description = "Obtener información del usuario actual" });
-            commands.Add(new { command = "get_participants", description = "Obtener lista de participantes" });
-            commands.Add(new { command = "get_voting_status", description = "Obtener estado actual de votación" });
+            // commands.Add(new { command = "get_user_info", description = "Obtener información del usuario actual" });
+            // commands.Add(new { command = "get_participants", description = "Obtener lista de participantes" });
+            // commands.Add(new { command = "get_voting_status", description = "Obtener estado actual de votación" });
             commands.Add(new { command = "help", description = "Mostrar esta ayuda" });
 
             // Comandos específicos por rol
             if (userRole?.ToLower() == "administrador")
             {
-                commands.Add(new { command = "get_dashboard", description = "Obtener datos completos del dashboard (solo admin)" });
-                commands.Add(new { command = "get_ranking", description = "Obtener ranking completo (solo admin)" });
-                commands.Add(new { command = "start_voting", description = "Iniciar votación (solo admin)" });
-                commands.Add(new { comando = "ajustes", description = "Modificar ajustes del evento (solo admin)" });
-                commands.Add(new { comando = "participante", description = "Iniciar/cancelar votación de participante (solo admin)" });
+                commands.Add(new { Titulo = "Cambiar tiempo de votación", command = "ajustes", description = "Cambia el valor de tiempoVotacion, el formato debe estar en segundo como se muestra en el ejemplo {\"comando\":\"ajustes\",\"tiempoVotacion\":300, \"terminado\":false }" });
+                commands.Add(new { Titulo = "Finalizar el evento", command = "ajustes", description = "Cambia el valor de terminado a true, como se muestra en el ejemplo {\"comando\":\"ajustes\",\"tiempoVotacion\":300, \"terminado\":true }" });
+                commands.Add(new { Titulo = "Iniciar Votacion", command = "iniciar_votacion", description = "Para iniciar una votacion es necesario el id del participante y iniciar votacion true, como se muestra en el ejemplo: {\"comando\":\"iniciar_votacion\",\"iniciarVotacion\":true,\"idParticipante\":1}" });
+                commands.Add(new { Titulo = "Cancelar Votacion", command = "iniciar_votacion", description = "Para cancelar una votacion es necesario el id del participante y iniciar votacion false, como se muestra en el ejemplo: {\"comando\":\"iniciar_votacion\",\"iniciarVotacion\":false,\"idParticipante\":1}" });
+                commands.Add(new { Titulo = "Desempate", command = "desempatar_votacion", description = "Para desempatar una votacion es necesario el id del participante, como se muestra en el ejemplo: {\"comando\":\"desempatar_votacion\",\"idParticipante\":1}" });
+
+                // commands.Add(new { command = "get_dashboard", description = "Obtener datos completos del dashboard (solo admin)" });
+                // commands.Add(new { command = "get_ranking", description = "Obtener ranking completo (solo admin)" });
+                // commands.Add(new { command = "start_voting", description = "Iniciar votación (solo admin)" });
+                // commands.Add(new { comando = "ajustes", description = "Modificar ajustes del evento (solo admin)" });
+                // commands.Add(new { comando = "participante", description = "Iniciar/cancelar votación de participante (solo admin)" });
             }
             else if (userRole?.ToLower() == "votante" || userRole?.ToLower() == "publico")
             {
-                commands.Add(new { command = "vote", description = "Enviar voto (solo votantes/jueces)" });
+                commands.Add(new { Titulo = "Enviar una votación", command = "vote", description = "Enviar los datos como se muestra en el ejemplo {\"command\": \"vote\",\"idParticipante\": 1,\"atuendo\": 5,\"maquillaje\": 5,\"tradiciones\": 5,\"pasarela\": 5,\"interaccion\": 5}" });
+                // commands.Add(new { command = "vote", description = "Enviar voto (solo votantes/jueces)" });
             }
 
             var response = new
