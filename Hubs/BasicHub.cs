@@ -688,7 +688,7 @@ public class BasicHub : Hub {
                 {
                     type = "access_denied",
                     timestamp = DateTime.UtcNow,
-                    message = "Solo los usuarios públicos pueden enviar votos."
+                    message = "No cuenta con permisos para realizar esta acción."
                 };
                 await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(response, JsonOptions));
                 return;
@@ -701,7 +701,7 @@ public class BasicHub : Hub {
                 {
                     type = "access_denied",
                     timestamp = DateTime.UtcNow,
-                    message = "ID de acceso no válido en el token."
+                    message = "Acceso no válido en el token."
                 };
                 await Clients.Caller.SendAsync("ServerResponse", JsonSerializer.Serialize(response, JsonOptions));
                 return;
@@ -720,7 +720,7 @@ public class BasicHub : Hub {
             {
                 var errorResponse = new
                 {
-                    type = "vote_error",
+                    type = "error",
                     timestamp = DateTime.UtcNow,
                     message = "ID de participante inválido"
                 };
@@ -735,7 +735,7 @@ public class BasicHub : Hub {
             {
                 var errorResponse = new
                 {
-                    type = "vote_error",
+                    type = "error",
                     timestamp = DateTime.UtcNow,
                     message = "Todas las puntuaciones deben estar entre 1 y 5"
                 };
@@ -752,7 +752,7 @@ public class BasicHub : Hub {
             {
                 var errorResponse = new
                 {
-                    type = "vote_error",
+                    type = "error",
                     timestamp = DateTime.UtcNow,
                     message = "No hay votación activa para este participante o el participante no existe"
                 };
@@ -775,7 +775,7 @@ public class BasicHub : Hub {
                 {
                     var errorResponse = new
                     {
-                        type = "vote_error",
+                        type = "error",
                         timestamp = DateTime.UtcNow,
                         message = "Ya has votado por este participante"
                     };
@@ -825,7 +825,7 @@ public class BasicHub : Hub {
             // Respuesta exitosa al votante
             var successResponse = new
             {
-                type = "vote_saved",
+                type = "success",
                 timestamp = DateTime.UtcNow,
                 message = "Tu voto ha sido registrado exitosamente",
                 data = new
@@ -1332,31 +1332,31 @@ public class BasicHub : Hub {
                 
                 // Preparar datos actualizados para administradores
                 var adminDataActualizada = await tempHub.GetAdminDashboardData();
-                var adminMessage = new {
-                    type = "dashboard_updated",
-                    timestamp = DateTime.UtcNow,
-                    reason = "voting_finished_automatically",
-                    data = adminDataActualizada
-                };
+                // var adminMessage = new {
+                //     type = "dashboard_updated",
+                //     timestamp = DateTime.UtcNow,
+                //     reason = "voting_finished_automatically",
+                //     data = adminDataActualizada
+                // };
                 
                 // Preparar datos actualizados para votantes
                 var votanteDataActualizada = await tempHub.GetVotanteData();
-                var votanteMessage = new {
-                    type = "voting_status_updated", 
-                    timestamp = DateTime.UtcNow,
-                    reason = "voting_finished_automatically",
-                    data = votanteDataActualizada
-                };
+                // var votanteMessage = new {
+                //     type = "voting_status_updated", 
+                //     timestamp = DateTime.UtcNow,
+                //     reason = "voting_finished_automatically",
+                //     data = votanteDataActualizada
+                // };
                 
                 // Enviar mensajes específicos por grupo usando el hub context existente
                 using var notificationScope = _serviceScopeFactory.CreateScope();
                 var hubContext = notificationScope.ServiceProvider.GetRequiredService<IHubContext<BasicHub>>();
                 
                 await hubContext.Clients.Group("Administradores").SendAsync("ServerResponse", 
-                    JsonSerializer.Serialize(adminMessage, JsonOptions));
+                    JsonSerializer.Serialize(adminDataActualizada, JsonOptions));
                     
                 await hubContext.Clients.Group("Votantes").SendAsync("ServerResponse", 
-                    JsonSerializer.Serialize(votanteMessage, JsonOptions));
+                    JsonSerializer.Serialize(votanteDataActualizada, JsonOptions));
             } catch (Exception ex) {
                 _logger.LogError($"[BASIC HUB] Error enviando notificaciones de finalización: {ex.Message}");
             }
