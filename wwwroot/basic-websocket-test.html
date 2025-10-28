@@ -121,6 +121,16 @@
     <script>
         let connection = null;
 
+        // Configurar la URL base según el entorno
+        const baseUrl = window.location.origin;
+        const pathBase = window.location.pathname.split('/').slice(0, -1).join('/'); // Obtiene /CATRINAS_API o /API_PRUEBA
+        const hubUrl = baseUrl + pathBase + '/basicHub';
+
+        // Log para debugging
+        console.log('Base URL:', baseUrl);
+        console.log('Path Base:', pathBase);
+        console.log('Hub URL:', hubUrl);
+
         // Función para hacer login y obtener token
         async function doLogin() {
             const username = document.getElementById('username').value.trim();
@@ -132,7 +142,9 @@
             }
 
             try {
-                const response = await fetch('/api/login', {
+                const loginUrl = baseUrl + pathBase + '/api/login';
+                // logToConsole('LOGIN: Attempting login to ' + loginUrl);
+                const response = await fetch(loginUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -166,9 +178,10 @@
             }
 
             try {
-                // Crear conexión con token JWT
+                // Crear conexión con token JWT usando URL detectada automáticamente
+                // logToConsole('CONNECTING: Attempting to connect to ' + hubUrl);
                 connection = new signalR.HubConnectionBuilder()
-                    .withUrl('/basicHub?access_token=' + encodeURIComponent(token))
+                    .withUrl(hubUrl + '?access_token=' + encodeURIComponent(token))
                     .withAutomaticReconnect()
                     .build();
 
