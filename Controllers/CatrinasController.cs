@@ -438,7 +438,7 @@ public class CatrinasController : ControllerBase
             issuer: jwtSettings["Issuer"] ?? "CatrinasAPI",
             audience: jwtSettings["Audience"] ?? "CatrinasClient",
             claims: claims,
-            expires: DateTime.Now.AddHours(2), // Token válido por 2 horas para votación
+            expires: DateTime.Now.AddHours(8), // Token válido por 2 horas para votación
             signingCredentials: credentials
         );
 
