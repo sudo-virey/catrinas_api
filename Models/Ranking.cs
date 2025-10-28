@@ -15,6 +15,9 @@ public class Ranking
     [Range(0, 1000)]
     public decimal Puntos { get; set; } = 0;
     
+    [Column(TypeName = "decimal(5,2)")]
+    public decimal PuntosDesempate { get; set; } = 0;
+    
     public DateTime FechaActualizacion { get; set; } = DateTime.Now;
     
     [MaxLength(500)]

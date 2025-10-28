@@ -1,1 +1,175 @@
-{ "votacionEnCurso": { "idParticipante": 1, "participante": "Ana García Martínez", "tiempoInicio": 1761508703, "tiempoDuracion": 30 }, "participantes": [ { "idParticipante": 1, "participante": "Ana García Martínez", "estado": 2, "orden": 1 }, { "idParticipante": 2, "participante": "Luis Rodríguez López", "estado": 1, "orden": 2 }, { "idParticipante": 3, "participante": "Carmen Flores Sánchez", "estado": 1, "orden": 3 }, { "idParticipante": 4, "participante": "Jorge Hernández Vega", "estado": 1, "orden": 4 }, { "idParticipante": 5, "participante": "María Isabel Jiménez", "estado": 1, "orden": 5 }, { "idParticipante": 6, "participante": "Carlos Eduardo Morales", "estado": 1, "orden": 6 }, { "idParticipante": 7, "participante": "Sofia Alejandra Ruiz", "estado": 1, "orden": 7 }, { "idParticipante": 8, "participante": "Ricardo Daniel Torres", "estado": 1, "orden": 8 }, { "idParticipante": 9, "participante": "Alejandra Beatriz Luna", "estado": 1, "orden": 9 }, { "idParticipante": 10, "participante": "Fernando Javier Castro", "estado": 1, "orden": 10 } ], "ranking": [], "ajustes": { "tiempoVotacion": 30, "terminado": false } }
+{
+    "votacionEnCurso": null,
+    "participantes": [
+        {
+            "idParticipante": 10,
+            "participante": "Fernando Javier Castro",
+            "estado": 1,
+            "orden": 1
+        },
+        {
+            "idParticipante": 2,
+            "participante": "Luis Rodríguez López",
+            "estado": 3,
+            "orden": 2
+        },
+        {
+            "idParticipante": 3,
+            "participante": "Carmen Flores Sánchez",
+            "estado": 3,
+            "orden": 3
+        },
+        {
+            "idParticipante": 4,
+            "participante": "Jorge Hernández Vega",
+            "estado": 3,
+            "orden": 4
+        },
+        {
+            "idParticipante": 5,
+            "participante": "María Isabel Jiménez",
+            "estado": 3,
+            "orden": 5
+        },
+        {
+            "idParticipante": 6,
+            "participante": "Carlos Eduardo Morales",
+            "estado": 3,
+            "orden": 6
+        },
+        {
+            "idParticipante": 7,
+            "participante": "Sofia Alejandra Ruiz",
+            "estado": 3,
+            "orden": 7
+        },
+        {
+            "idParticipante": 8,
+            "participante": "Ricardo Daniel Torres",
+            "estado": 3,
+            "orden": 8
+        },
+        {
+            "idParticipante": 9,
+            "participante": "Alejandra Beatriz Luna",
+            "estado": 1,
+            "orden": 9
+        },
+        {
+            "idParticipante": 1,
+            "participante": "Ana García Martínez",
+            "estado": 3,
+            "orden": 10
+        }
+    ],
+    "ranking": [
+        {
+            "ordenRanking": 1,
+            "idParticipante": 3,
+            "participante": "Carmen Flores Sánchez",
+            "puntaje": 41.60,
+            "detallePuntaje": {
+                "atuendo": 0,
+                "maquillaje": 0,
+                "tradiciones": 0,
+                "pasarela": 0,
+                "interaccion": 0
+            }
+        },
+        {
+            "ordenRanking": 2,
+            "idParticipante": 1,
+            "participante": "Ana García Martínez",
+            "puntaje": 39.60,
+            "detallePuntaje": {
+                "atuendo": 0,
+                "maquillaje": 0,
+                "tradiciones": 0,
+                "pasarela": 0,
+                "interaccion": 0
+            }
+        },
+        {
+            "ordenRanking": 3,
+            "idParticipante": 2,
+            "participante": "Luis Rodríguez López",
+            "puntaje": 39.60,
+            "detallePuntaje": {
+                "atuendo": 0,
+                "maquillaje": 0,
+                "tradiciones": 0,
+                "pasarela": 0,
+                "interaccion": 0
+            }
+        },
+        {
+            "ordenRanking": 4,
+            "idParticipante": 5,
+            "participante": "María Isabel Jiménez",
+            "puntaje": 38.80,
+            "detallePuntaje": {
+                "atuendo": 0,
+                "maquillaje": 0,
+                "tradiciones": 0,
+                "pasarela": 0,
+                "interaccion": 0
+            }
+        },
+        {
+            "ordenRanking": 5,
+            "idParticipante": 4,
+            "participante": "Jorge Hernández Vega",
+            "puntaje": 37.60,
+            "detallePuntaje": {
+                "atuendo": 0,
+                "maquillaje": 0,
+                "tradiciones": 0,
+                "pasarela": 0,
+                "interaccion": 0
+            }
+        },
+        {
+            "ordenRanking": 6,
+            "idParticipante": 6,
+            "participante": "Carlos Eduardo Morales",
+            "puntaje": 10.00,
+            "detallePuntaje": {
+                "atuendo": 0,
+                "maquillaje": 0,
+                "tradiciones": 0,
+                "pasarela": 0,
+                "interaccion": 0
+            }
+        },
+        {
+            "ordenRanking": 7,
+            "idParticipante": 7,
+            "participante": "Sofia Alejandra Ruiz",
+            "puntaje": 10.00,
+            "detallePuntaje": {
+                "atuendo": 0,
+                "maquillaje": 0,
+                "tradiciones": 0,
+                "pasarela": 0,
+                "interaccion": 0
+            }
+        },
+        {
+            "ordenRanking": 8,
+            "idParticipante": 8,
+            "participante": "Ricardo Daniel Torres",
+            "puntaje": 10.00,
+            "detallePuntaje": {
+                "atuendo": 0,
+                "maquillaje": 0,
+                "tradiciones": 0,
+                "pasarela": 0,
+                "interaccion": 0
+            }
+        }
+    ],
+    "ajustes": {
+        "tiempoVotacion": 300,
+        "terminado": true
+    }
+}
