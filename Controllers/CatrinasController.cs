@@ -265,6 +265,76 @@ public class CatrinasController : ControllerBase
         }
     }
 
+    [HttpGet("consultarRanking")]
+    public async Task<IActionResult> ConsultarRanking()
+    {
+        try
+        {
+            // Obtener votación en curso
+            var votacionEnCurso = await ObtenerVotacionEnCurso();
+
+            // Obtener ranking de la tabla Rankings con datos del participante
+            var rankingData = await _context.Rankings
+                .Include(r => r.Participante)
+                .ThenInclude(p => p.Estado)
+                .OrderByDescending(r => r.Puntos)
+                .Select(r => new
+                {
+                    idParticipante = r.Id_Participante,
+                    participante = new
+                    {
+                        id = r.Participante.Id_Participante,
+                        nombre = r.Participante.Nombre,
+                        estado = r.Participante.Estado.Descripcion,
+                        idEstado = r.Participante.Id_Estado,
+                        orden = r.Participante.Orden
+                    },
+                    puntos = r.Puntos,
+                    puntosDesempate = r.PuntosDesempate,
+                    fechaActualizacion = r.FechaActualizacion,
+                    observaciones = r.Observaciones,
+                    totalesPorCategoria = new
+                    {
+                        atuendo = r.TotalAtuendo,
+                        maquillaje = r.TotalMaquillaje,
+                        tradiciones = r.TotalTradiciones,
+                        pasarela = r.TotalPasarela,
+                        interaccion = r.TotalInteraccion
+                    }
+                })
+                .ToListAsync();
+
+            // Agregar posición después de obtener los datos
+            var ranking = rankingData.Select((r, index) => new
+            {
+                posicion = index + 1,
+                r.idParticipante,
+                r.participante,
+                r.puntos,
+                r.puntosDesempate,
+                r.fechaActualizacion,
+                r.observaciones,
+                r.totalesPorCategoria
+            }).ToList();
+
+            return Ok(new
+            {
+                votacionEnCurso = votacionEnCurso,
+                ranking = ranking,
+                totalParticipantes = ranking.Count,
+                fechaConsulta = DateTime.Now
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                error = "Error al consultar el ranking",
+                detalle = ex.Message
+            });
+        }
+    }
+
     // [HttpGet("test-jwt")]
     // public IActionResult GenerarJwtDePrueba()
     // {

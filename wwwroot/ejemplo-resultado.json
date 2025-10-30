@@ -1,99 +1,227 @@
 {
-    "votacionEnCurso": null,
-    "participantes": [
-        {
-            "idParticipante": 10,
-            "participante": "Fernando Javier Castro",
-            "estado": 1,
-            "orden": 1
-        },
-        {
-            "idParticipante": 2,
-            "participante": "Luis Rodríguez López",
-            "estado": 3,
-            "orden": 2
-        },
-        {
-            "idParticipante": 3,
-            "participante": "Carmen Flores Sánchez",
-            "estado": 1,
-            "orden": 3
-        },
-        {
-            "idParticipante": 4,
-            "participante": "Jorge Hernández Vega",
-            "estado": 1,
-            "orden": 4
-        },
-        {
-            "idParticipante": 5,
-            "participante": "María Isabel Jiménez",
-            "estado": 1,
-            "orden": 5
-        },
-        {
-            "idParticipante": 6,
-            "participante": "Carlos Eduardo Morales",
-            "estado": 1,
-            "orden": 6
-        },
-        {
-            "idParticipante": 7,
-            "participante": "Sofia Alejandra Ruiz",
-            "estado": 1,
-            "orden": 7
-        },
-        {
-            "idParticipante": 8,
-            "participante": "Ricardo Daniel Torres",
-            "estado": 1,
-            "orden": 8
-        },
-        {
-            "idParticipante": 9,
-            "participante": "Alejandra Beatriz Luna",
-            "estado": 1,
-            "orden": 9
-        },
-        {
-            "idParticipante": 1,
-            "participante": "Ana García Martínez",
-            "estado": 3,
-            "orden": 10
-        }
-    ],
-    "ranking": [
-        {
-            "idParticipante": 2,
-            "participante": "Luis Rodríguez López",
-            "puntaje": 2,
-            "detallePuntaje": {
-                "atuendo": 1,
-                "maquillaje": 1,
-                "tradiciones": 1,
-                "pasarela": 1,
-                "interaccion": 1
-            },
-            "ordenRanking": 1,
-            "numeroEvaluaciones": 1
-        },
-        {
-            "idParticipante": 1,
-            "participante": "Ana García Martínez",
-            "puntaje": 0,
-            "detallePuntaje": {
-                "atuendo": 0,
-                "maquillaje": 0,
-                "tradiciones": 0,
-                "pasarela": 0,
-                "interaccion": 0
-            },
-            "ordenRanking": 2,
-            "numeroEvaluaciones": 0
-        }
-    ],
-    "ajustes": {
-        "tiempoVotacion": 30,
-        "terminado": false
+  "votacionEnCurso": null,
+  "ranking": [
+    {
+      "posicion": 1,
+      "idParticipante": 2,
+      "participante": {
+        "id": 2,
+        "nombre": "Luis Rodríguez López 2",
+        "estado": "Participante siendo evaluado por jueces",
+        "idEstado": 3,
+        "orden": 2
+      },
+      "puntos": 30.01,
+      "puntosDesempate": 0.01,
+      "fechaActualizacion": "2025-10-29T19:27:36.8653374",
+      "observaciones": "Votación finalizada automáticamente - 3 votos recibidos",
+      "totalesPorCategoria": {
+        "atuendo": 15,
+        "maquillaje": 15,
+        "tradiciones": 15,
+        "pasarela": 15,
+        "interaccion": 15
+      }
+    },
+    {
+      "posicion": 2,
+      "idParticipante": 3,
+      "participante": {
+        "id": 3,
+        "nombre": "Carmen Flores Sánchez 2",
+        "estado": "Participante siendo evaluado por jueces",
+        "idEstado": 3,
+        "orden": 3
+      },
+      "puntos": 30,
+      "puntosDesempate": 0.01,
+      "fechaActualizacion": "2025-10-29T19:27:36.8901816",
+      "observaciones": "Votación finalizada automáticamente - 3 votos recibidos",
+      "totalesPorCategoria": {
+        "atuendo": 15,
+        "maquillaje": 15,
+        "tradiciones": 15,
+        "pasarela": 15,
+        "interaccion": 15
+      }
+    },
+    {
+      "posicion": 3,
+      "idParticipante": 7,
+      "participante": {
+        "id": 7,
+        "nombre": "Sofia Alejandra Ruiz 2",
+        "estado": "Participante siendo evaluado por jueces",
+        "idEstado": 3,
+        "orden": 7
+      },
+      "puntos": 10.01,
+      "puntosDesempate": 0.01,
+      "fechaActualizacion": "2025-10-29T19:42:41.6931449",
+      "observaciones": "Votación finalizada automáticamente - 1 votos recibidos",
+      "totalesPorCategoria": {
+        "atuendo": 5,
+        "maquillaje": 5,
+        "tradiciones": 5,
+        "pasarela": 5,
+        "interaccion": 5
+      }
+    },
+    {
+      "posicion": 4,
+      "idParticipante": 4,
+      "participante": {
+        "id": 4,
+        "nombre": "Jorge Hernández Vega 2",
+        "estado": "Participante siendo evaluado por jueces",
+        "idEstado": 3,
+        "orden": 4
+      },
+      "puntos": 10,
+      "puntosDesempate": 0,
+      "fechaActualizacion": "2025-10-29T19:27:36.9109477",
+      "observaciones": "Votación finalizada automáticamente - 1 votos recibidos",
+      "totalesPorCategoria": {
+        "atuendo": 5,
+        "maquillaje": 5,
+        "tradiciones": 5,
+        "pasarela": 5,
+        "interaccion": 5
+      }
+    },
+    {
+      "posicion": 5,
+      "idParticipante": 5,
+      "participante": {
+        "id": 5,
+        "nombre": "María Isabel Jiménez 2",
+        "estado": "Participante siendo evaluado por jueces",
+        "idEstado": 3,
+        "orden": 5
+      },
+      "puntos": 8.01,
+      "puntosDesempate": 0.01,
+      "fechaActualizacion": "2025-10-29T20:15:58.4870765",
+      "observaciones": "Votación finalizada automáticamente - 1 votos recibidos",
+      "totalesPorCategoria": {
+        "atuendo": 4,
+        "maquillaje": 4,
+        "tradiciones": 4,
+        "pasarela": 4,
+        "interaccion": 4
+      }
+    },
+    {
+      "posicion": 6,
+      "idParticipante": 10,
+      "participante": {
+        "id": 10,
+        "nombre": "Fernando Javier Castro 2",
+        "estado": "Participante registrado en el concurso",
+        "idEstado": 1,
+        "orden": 10
+      },
+      "puntos": 8,
+      "puntosDesempate": 0,
+      "fechaActualizacion": "2025-10-29T20:56:39.4129728",
+      "observaciones": "Votación finalizada automáticamente - 1 votos recibidos",
+      "totalesPorCategoria": {
+        "atuendo": 4,
+        "maquillaje": 4,
+        "tradiciones": 4,
+        "pasarela": 4,
+        "interaccion": 4
+      }
+    },
+    {
+      "posicion": 7,
+      "idParticipante": 9,
+      "participante": {
+        "id": 9,
+        "nombre": "Alejandra Beatriz Luna 2",
+        "estado": "Participante siendo evaluado por jueces",
+        "idEstado": 3,
+        "orden": 9
+      },
+      "puntos": 4,
+      "puntosDesempate": 0,
+      "fechaActualizacion": "2025-10-29T20:56:18.8468092",
+      "observaciones": "Votación finalizada automáticamente - 1 votos recibidos",
+      "totalesPorCategoria": {
+        "atuendo": 2,
+        "maquillaje": 2,
+        "tradiciones": 2,
+        "pasarela": 2,
+        "interaccion": 2
+      }
+    },
+    {
+      "posicion": 8,
+      "idParticipante": 1,
+      "participante": {
+        "id": 1,
+        "nombre": "Ana García Martínez 2",
+        "estado": "Participante siendo evaluado por jueces",
+        "idEstado": 3,
+        "orden": 1
+      },
+      "puntos": 0,
+      "puntosDesempate": 0,
+      "fechaActualizacion": "2025-10-29T19:27:36.8396019",
+      "observaciones": "Votación finalizada automáticamente - 0 votos recibidos",
+      "totalesPorCategoria": {
+        "atuendo": 0,
+        "maquillaje": 0,
+        "tradiciones": 0,
+        "pasarela": 0,
+        "interaccion": 0
+      }
+    },
+    {
+      "posicion": 9,
+      "idParticipante": 8,
+      "participante": {
+        "id": 8,
+        "nombre": "Ricardo Daniel Torres 2",
+        "estado": "Participante siendo evaluado por jueces",
+        "idEstado": 3,
+        "orden": 8
+      },
+      "puntos": 0,
+      "puntosDesempate": 0,
+      "fechaActualizacion": "2025-10-29T20:50:46.0417984",
+      "observaciones": "Votación finalizada automáticamente - 0 votos recibidos",
+      "totalesPorCategoria": {
+        "atuendo": 0,
+        "maquillaje": 0,
+        "tradiciones": 0,
+        "pasarela": 0,
+        "interaccion": 0
+      }
+    },
+    {
+      "posicion": 10,
+      "idParticipante": 6,
+      "participante": {
+        "id": 6,
+        "nombre": "Carlos Eduardo Morales 2",
+        "estado": "Participante siendo evaluado por jueces",
+        "idEstado": 3,
+        "orden": 6
+      },
+      "puntos": 0,
+      "puntosDesempate": 0,
+      "fechaActualizacion": "2025-10-29T19:27:36.9416886",
+      "observaciones": "Votación finalizada automáticamente - 0 votos recibidos",
+      "totalesPorCategoria": {
+        "atuendo": 0,
+        "maquillaje": 0,
+        "tradiciones": 0,
+        "pasarela": 0,
+        "interaccion": 0
+      }
     }
+  ],
+  "totalParticipantes": 10,
+  "fechaConsulta": "2025-10-29T21:15:37.1010938-06:00"
 }
