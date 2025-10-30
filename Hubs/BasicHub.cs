@@ -1464,7 +1464,7 @@ public class BasicHub : Hub
                 if (rankingExistente != null)
                 {
                     // Actualizar puntaje existente
-                    rankingExistente.Puntos = Math.Round(puntajeTotal, 2);//Se toman solo 2 decimales
+                    rankingExistente.Puntos = Math.Round(puntajeTotal, 2); //+ rankingExistente.PuntosDesempate;//Se toman solo 2 decimales
                     rankingExistente.TotalAtuendo = atuendoTotal;
                     rankingExistente.TotalMaquillaje = maquillajeTotal;
                     rankingExistente.TotalTradiciones = tradicionesTotal;

@@ -24,36 +24,36 @@ public class CatrinasController : ControllerBase
         _configuration = configuration;
     }
 
-    [HttpGet("websocket-status")]
-    public IActionResult GetWebSocketStatus()
-    {
-        var baseUrl = $"{Request.Scheme}://{Request.Host}";
-        var pathBase = Request.PathBase.Value ?? "";
-        
-        return Ok(new 
-        { 
-            mensaje = "WebSockets ACTIVO - Chat implementado",
-            signalRHubUrl = $"{pathBase}/chatHub",
-            urlCompleta = $"{baseUrl}{pathBase}/chatHub",
-            estado = "ACTIVO ✅",
-            corsConfigured = true,
-            allowedOrigins = new[] { "https://ietam.org.mx", "http://localhost:3000", "http://localhost:5000" },
-            instrucciones = new
-            {
-                conectar = $"Usar SignalR client para conectar a {pathBase}/chatHub",
-                enviarMensaje = "Llamar método 'SendMessage(user, message)'",
-                recibirMensajes = "Escuchar evento 'ReceiveMessage'",
-                eventos = new[] { "UserConnected", "UserDisconnected", "ReceiveMessage" }
-            },
-            diagnostico = new
-            {
-                scheme = Request.Scheme,
-                host = Request.Host.Value,
-                pathBase = pathBase,
-                fullPath = Request.Path.Value
-            }
-        });
-    }
+    // [HttpGet("websocket-status")]
+    // public IActionResult GetWebSocketStatus()
+    // {
+    //     var baseUrl = $"{Request.Scheme}://{Request.Host}";
+    //     var pathBase = Request.PathBase.Value ?? "";
+
+    //     return Ok(new 
+    //     { 
+    //         mensaje = "WebSockets ACTIVO - Chat implementado",
+    //         signalRHubUrl = $"{pathBase}/chatHub",
+    //         urlCompleta = $"{baseUrl}{pathBase}/chatHub",
+    //         estado = "ACTIVO ✅",
+    //         corsConfigured = true,
+    //         allowedOrigins = new[] { "https://ietam.org.mx", "http://localhost:3000", "http://localhost:5000" },
+    //         instrucciones = new
+    //         {
+    //             conectar = $"Usar SignalR client para conectar a {pathBase}/chatHub",
+    //             enviarMensaje = "Llamar método 'SendMessage(user, message)'",
+    //             recibirMensajes = "Escuchar evento 'ReceiveMessage'",
+    //             eventos = new[] { "UserConnected", "UserDisconnected", "ReceiveMessage" }
+    //         },
+    //         diagnostico = new
+    //         {
+    //             scheme = Request.Scheme,
+    //             host = Request.Host.Value,
+    //             pathBase = pathBase,
+    //             fullPath = Request.Path.Value
+    //         }
+    //     });
+    // }
 
     [HttpGet("concurso-terminado")]
     public async Task<IActionResult> GetConcursoTerminado()
@@ -118,8 +118,8 @@ public class CatrinasController : ControllerBase
 
             if (acceso == null)
             {
-                return Ok(new 
-                { 
+                return Ok(new
+                {
                     accesoValido = false,
                     idAcceso = (int?)null,
                     concursoTerminado = concursoTerminado,
@@ -129,8 +129,8 @@ public class CatrinasController : ControllerBase
 
             // Generar JWT token para usuario público
             var token = GenerarJwtTokenPublico(acceso);
-            return Ok(new 
-            { 
+            return Ok(new
+            {
                 accesoValido = true,
                 idAcceso = acceso.Id_Acceso,
                 concursoTerminado = concursoTerminado,
@@ -144,67 +144,67 @@ public class CatrinasController : ControllerBase
         }
     }
 
-    [HttpGet("validar-acceso/{codigoAcceso}")]
-    public async Task<IActionResult> ValidarAccesoGet(string codigoAcceso)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(codigoAcceso))
-            {
-                return BadRequest(new 
-                { 
-                    accesoValido = false,
-                    idAcceso = (int?)null,
-                    concursoTerminado = false,
-                    mensaje = "Código de acceso requerido"
-                });
-            }
+    // [HttpGet("validar-acceso/{codigoAcceso}")]
+    // public async Task<IActionResult> ValidarAccesoGet(string codigoAcceso)
+    // {
+    //     try
+    //     {
+    //         if (string.IsNullOrWhiteSpace(codigoAcceso))
+    //         {
+    //             return BadRequest(new
+    //             {
+    //                 accesoValido = false,
+    //                 idAcceso = (int?)null,
+    //                 concursoTerminado = false,
+    //                 mensaje = "Código de acceso requerido"
+    //             });
+    //         }
 
-            // Buscar el código de acceso en la tabla
-            var acceso = await _context.Accesos
-                .FirstOrDefaultAsync(a => a.Acceso1 == codigoAcceso);
+    //         // Buscar el código de acceso en la tabla
+    //         var acceso = await _context.Accesos
+    //             .FirstOrDefaultAsync(a => a.Acceso1 == codigoAcceso);
 
-            // Obtener el estado del concurso (último ajuste)
-            var ultimoAjuste = await _context.Ajustes
-                .OrderByDescending(a => a.Id_Ajuste)
-                .FirstOrDefaultAsync();
+    //         // Obtener el estado del concurso (último ajuste)
+    //         var ultimoAjuste = await _context.Ajustes
+    //             .OrderByDescending(a => a.Id_Ajuste)
+    //             .FirstOrDefaultAsync();
 
-            bool concursoTerminado = ultimoAjuste?.Publicacion_Resultados ?? false;
+    //         bool concursoTerminado = ultimoAjuste?.Publicacion_Resultados ?? false;
 
-            if (acceso == null)
-            {
-                return Ok(new 
-                { 
-                    accesoValido = false,
-                    idAcceso = (int?)null,
-                    concursoTerminado = concursoTerminado,
-                    mensaje = "Código de acceso no válido"
-                });
-            }
+    //         if (acceso == null)
+    //         {
+    //             return Ok(new
+    //             {
+    //                 accesoValido = false,
+    //                 idAcceso = (int?)null,
+    //                 concursoTerminado = concursoTerminado,
+    //                 mensaje = "Código de acceso no válido"
+    //             });
+    //         }
 
-            // Generar JWT token para usuario público
-            var token = GenerarJwtTokenPublico(acceso);
-            return Ok(new 
-            { 
-                accesoValido = true,
-                idAcceso = acceso.Id_Acceso,
-                concursoTerminado = concursoTerminado,
-                token = token,
-                mensaje = "Acceso válido"
-            });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new 
-            { 
-                accesoValido = false,
-                idAcceso = (int?)null,
-                concursoTerminado = false,
-                error = "Error al validar el acceso",
-                detalle = ex.Message
-            });
-        }
-    }
+    //         // Generar JWT token para usuario público
+    //         var token = GenerarJwtTokenPublico(acceso);
+    //         return Ok(new
+    //         {
+    //             accesoValido = true,
+    //             idAcceso = acceso.Id_Acceso,
+    //             concursoTerminado = concursoTerminado,
+    //             token = token,
+    //             mensaje = "Acceso válido"
+    //         });
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         return StatusCode(500, new
+    //         {
+    //             accesoValido = false,
+    //             idAcceso = (int?)null,
+    //             concursoTerminado = false,
+    //             error = "Error al validar el acceso",
+    //             detalle = ex.Message
+    //         });
+    //     }
+    // }
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
@@ -213,8 +213,8 @@ public class CatrinasController : ControllerBase
         {
             if (string.IsNullOrWhiteSpace(request.Usuario) || string.IsNullOrWhiteSpace(request.Password))
             {
-                return BadRequest(new 
-                { 
+                return BadRequest(new
+                {
                     accesoPermitido = false,
                     idUsuario = (int?)null,
                     nombre = "",
@@ -229,8 +229,8 @@ public class CatrinasController : ControllerBase
 
             if (usuario == null || !VerificarPassword(request.Password, usuario.Password))
             {
-                return Ok(new 
-                { 
+                return Ok(new
+                {
                     accesoPermitido = false,
                     idUsuario = (int?)null,
                     nombre = "",
@@ -242,8 +242,8 @@ public class CatrinasController : ControllerBase
             // Generar JWT token
             var token = GenerarJwtToken(usuario);
 
-            return Ok(new 
-            { 
+            return Ok(new
+            {
                 accesoPermitido = true,
                 idUsuario = usuario.Id_Usuario,
                 nombre = usuario.NombreCompleto ?? usuario.Usuario,
@@ -253,8 +253,8 @@ public class CatrinasController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new 
-            { 
+            return StatusCode(500, new
+            {
                 accesoPermitido = false,
                 idUsuario = (int?)null,
                 nombre = "",
@@ -265,105 +265,105 @@ public class CatrinasController : ControllerBase
         }
     }
 
-    [HttpGet("test-jwt")]
-    public IActionResult GenerarJwtDePrueba()
-    {
-        try
-        {
-            var jwtSettings = _configuration.GetSection("Jwt");
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
-                jwtSettings["Key"] ?? "Mi_Clave_Super_Secreta_Para_JWT_Que_Debe_Ser_Muy_Larga_Y_Segura_123456789"));
-            
-            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+    // [HttpGet("test-jwt")]
+    // public IActionResult GenerarJwtDePrueba()
+    // {
+    //     try
+    //     {
+    //         var jwtSettings = _configuration.GetSection("Jwt");
+    //         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
+    //             jwtSettings["Key"] ?? "Mi_Clave_Super_Secreta_Para_JWT_Que_Debe_Ser_Muy_Larga_Y_Segura_123456789"));
 
-            var claims = new[]
-            {
-                new Claim(ClaimTypes.NameIdentifier, "test-user-123"),
-                new Claim(ClaimTypes.Name, "Usuario de Prueba"),
-                new Claim(ClaimTypes.Email, "test@ejemplo.com"),
-                new Claim(ClaimTypes.Role, "TestUser"),
-                new Claim("FullName", "Usuario de Prueba Chat"),
-                new Claim("AccessType", "Admin"), // Tipo de acceso para prueba
-                new Claim("idUsuario", "999"), // ID de usuario de prueba
-                new Claim("IdAcceso", "0") // ID de acceso 0 para prueba tipo Admin
-            };
+    //         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var token = new JwtSecurityToken(
-                issuer: jwtSettings["Issuer"] ?? "CatrinasAPI",
-                audience: jwtSettings["Audience"] ?? "CatrinasClient",
-                claims: claims,
-                expires: DateTime.Now.AddHours(2), // Token válido por 2 horas
-                signingCredentials: credentials
-            );
+    //         var claims = new[]
+    //         {
+    //             new Claim(ClaimTypes.NameIdentifier, "test-user-123"),
+    //             new Claim(ClaimTypes.Name, "Usuario de Prueba"),
+    //             new Claim(ClaimTypes.Email, "test@ejemplo.com"),
+    //             new Claim(ClaimTypes.Role, "TestUser"),
+    //             new Claim("FullName", "Usuario de Prueba Chat"),
+    //             new Claim("AccessType", "Admin"), // Tipo de acceso para prueba
+    //             new Claim("idUsuario", "999"), // ID de usuario de prueba
+    //             new Claim("IdAcceso", "0") // ID de acceso 0 para prueba tipo Admin
+    //         };
 
-            var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+    //         var token = new JwtSecurityToken(
+    //             issuer: jwtSettings["Issuer"] ?? "CatrinasAPI",
+    //             audience: jwtSettings["Audience"] ?? "CatrinasClient",
+    //             claims: claims,
+    //             expires: DateTime.Now.AddHours(2), // Token válido por 2 horas
+    //             signingCredentials: credentials
+    //         );
 
-            return Ok(new 
-            { 
-                mensaje = "JWT de prueba generado exitosamente",
-                token = tokenString,
-                expira = DateTime.Now.AddHours(2),
-                usuario = "Usuario de Prueba",
-                instrucciones = "Copia este token y úsalo en el campo JWT del chat-test.html"
-            });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new 
-            { 
-                error = "Error generando JWT de prueba",
-                detalle = ex.Message
-            });
-        }
-    }
+    //         var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
 
-    [HttpGet("verify-jwt")]
-    [Authorize] // Requiere JWT válido
-    public IActionResult VerificarJwt()
-    {
-        try
-        {
-            if (User.Identity?.IsAuthenticated != true)
-            {
-                return Unauthorized(new { mensaje = "Token JWT no proporcionado o inválido" });
-            }
+    //         return Ok(new 
+    //         { 
+    //             mensaje = "JWT de prueba generado exitosamente",
+    //             token = tokenString,
+    //             expira = DateTime.Now.AddHours(2),
+    //             usuario = "Usuario de Prueba",
+    //             instrucciones = "Copia este token y úsalo en el campo JWT del chat-test.html"
+    //         });
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         return StatusCode(500, new 
+    //         { 
+    //             error = "Error generando JWT de prueba",
+    //             detalle = ex.Message
+    //         });
+    //     }
+    // }
 
-            // Extraer todos los claims del JWT
-            var claims = User.Claims.ToDictionary(c => c.Type, c => c.Value);
-            
-            // Extraer información específica
-            var accessType = User.FindFirst("AccessType")?.Value ?? "No especificado";
-            var idUsuario = User.FindFirst("idUsuario")?.Value ?? "No especificado";
-            var idAcceso = User.FindFirst("IdAcceso")?.Value ?? "No especificado";
-            var fullName = User.FindFirst("FullName")?.Value ?? User.Identity.Name ?? "No especificado";
-            var role = User.FindFirst(ClaimTypes.Role)?.Value ?? "No especificado";
+    // [HttpGet("verify-jwt")]
+    // [Authorize] // Requiere JWT válido
+    // public IActionResult VerificarJwt()
+    // {
+    //     try
+    //     {
+    //         if (User.Identity?.IsAuthenticated != true)
+    //         {
+    //             return Unauthorized(new { mensaje = "Token JWT no proporcionado o inválido" });
+    //         }
 
-            return Ok(new 
-            { 
-                mensaje = "JWT válido y autenticado",
-                tokenInfo = new
-                {
-                    AccessType = accessType,
-                    IdUsuario = idUsuario,
-                    IdAcceso = idAcceso,
-                    NombreCompleto = fullName,
-                    Rol = role,
-                    Usuario = User.Identity.Name,
-                    EstaAutenticado = User.Identity.IsAuthenticated
-                },
-                todosLosClaims = claims,
-                verificadoEn = DateTime.Now
-            });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new 
-            { 
-                error = "Error verificando JWT",
-                detalle = ex.Message
-            });
-        }
-    }
+    //         // Extraer todos los claims del JWT
+    //         var claims = User.Claims.ToDictionary(c => c.Type, c => c.Value);
+
+    //         // Extraer información específica
+    //         var accessType = User.FindFirst("AccessType")?.Value ?? "No especificado";
+    //         var idUsuario = User.FindFirst("idUsuario")?.Value ?? "No especificado";
+    //         var idAcceso = User.FindFirst("IdAcceso")?.Value ?? "No especificado";
+    //         var fullName = User.FindFirst("FullName")?.Value ?? User.Identity.Name ?? "No especificado";
+    //         var role = User.FindFirst(ClaimTypes.Role)?.Value ?? "No especificado";
+
+    //         return Ok(new 
+    //         { 
+    //             mensaje = "JWT válido y autenticado",
+    //             tokenInfo = new
+    //             {
+    //                 AccessType = accessType,
+    //                 IdUsuario = idUsuario,
+    //                 IdAcceso = idAcceso,
+    //                 NombreCompleto = fullName,
+    //                 Rol = role,
+    //                 Usuario = User.Identity.Name,
+    //                 EstaAutenticado = User.Identity.IsAuthenticated
+    //             },
+    //             todosLosClaims = claims,
+    //             verificadoEn = DateTime.Now
+    //         });
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         return StatusCode(500, new 
+    //         { 
+    //             error = "Error verificando JWT",
+    //             detalle = ex.Message
+    //         });
+    //     }
+    // }
 
     private bool VerificarPassword(string passwordIngresado, string passwordAlmacenado)
     {
@@ -376,7 +376,7 @@ public class CatrinasController : ControllerBase
         var jwtSettings = _configuration.GetSection("Jwt");
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
             jwtSettings["Key"] ?? "Mi_Clave_Super_Secreta_Para_JWT_Que_Debe_Ser_Muy_Larga_Y_Segura_123456789"));
-        
+
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
@@ -420,7 +420,7 @@ public class CatrinasController : ControllerBase
         var jwtSettings = _configuration.GetSection("Jwt");
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
             jwtSettings["Key"] ?? "Mi_Clave_Super_Secreta_Para_JWT_Que_Debe_Ser_Muy_Larga_Y_Segura_123456789"));
-        
+
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
@@ -451,144 +451,144 @@ public class CatrinasController : ControllerBase
     /// Endpoint EXCLUSIVO para usuarios ADMINISTRADORES
     /// Devuelve datos completos de administración del concurso
     /// </summary>
-    [HttpGet("admin/dashboard")]
-    [Authorize(Roles = "Administrador")]
-    public async Task<IActionResult> GetAdminDashboard()
-    {
-        try
-        {
-            // Verificar que es realmente un admin
-            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
-            if (userRole != "Administrador")
-            {
-                return Forbid("Acceso denegado: Solo administradores");
-            }
+    // [HttpGet("admin/dashboard")]
+    // [Authorize(Roles = "Administrador")]
+    // public async Task<IActionResult> GetAdminDashboard()
+    // {
+    //     try
+    //     {
+    //         // Verificar que es realmente un admin
+    //         var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+    //         if (userRole != "Administrador")
+    //         {
+    //             return Forbid("Acceso denegado: Solo administradores");
+    //         }
 
-            // Obtener votación en curso
-            var votacionEnCurso = await ObtenerVotacionEnCurso();
-            
-            // Obtener todos los participantes con su estado
-            var participantes = await _context.Participantes
-                .Include(p => p.Estado)
-                .OrderBy(p => p.Orden)
-                .Select(p => new
-                {
-                    idParticipante = p.Id_Participante,
-                    participante = p.Nombre,
-                    estado = p.Id_Estado,
-                    orden = p.Orden // Usar columna Orden de la tabla
-                })
-                .ToListAsync();
+    //         // Obtener votación en curso
+    //         var votacionEnCurso = await ObtenerVotacionEnCurso();
 
-            // Obtener ranking completo
-            var ranking = await ObtenerRankingCompleto();
+    //         // Obtener todos los participantes con su estado
+    //         var participantes = await _context.Participantes
+    //             .Include(p => p.Estado)
+    //             .OrderBy(p => p.Orden)
+    //             .Select(p => new
+    //             {
+    //                 idParticipante = p.Id_Participante,
+    //                 participante = p.Nombre,
+    //                 estado = p.Id_Estado,
+    //                 orden = p.Orden // Usar columna Orden de la tabla
+    //             })
+    //             .ToListAsync();
 
-            // Obtener ajustes del concurso
-            var ultimoAjuste = await _context.Ajustes
-                .OrderByDescending(a => a.Id_Ajuste)
-                .FirstOrDefaultAsync();
+    //         // Obtener ranking completo
+    //         var ranking = await ObtenerRankingCompleto();
 
-            var response = new
-            {
-                votacionEnCurso = votacionEnCurso,
-                participantes = participantes,
-                ranking = ranking,
-                ajustes = new
-                {
-                    tiempoVotacion = ultimoAjuste?.Tiempo_de_Votacion ?? 300,
-                    terminado = ultimoAjuste?.Publicacion_Resultados ?? false
-                }
-            };
+    //         // Obtener ajustes del concurso
+    //         var ultimoAjuste = await _context.Ajustes
+    //             .OrderByDescending(a => a.Id_Ajuste)
+    //             .FirstOrDefaultAsync();
 
-            return Ok(response);
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { error = "Error obteniendo dashboard admin", detalle = ex.Message });
-        }
-    }
+    //         var response = new
+    //         {
+    //             votacionEnCurso = votacionEnCurso,
+    //             participantes = participantes,
+    //             ranking = ranking,
+    //             ajustes = new
+    //             {
+    //                 tiempoVotacion = ultimoAjuste?.Tiempo_de_Votacion ?? 300,
+    //                 terminado = ultimoAjuste?.Publicacion_Resultados ?? false
+    //             }
+    //         };
+
+    //         return Ok(response);
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         return StatusCode(500, new { error = "Error obteniendo dashboard admin", detalle = ex.Message });
+    //     }
+    // }
 
     /// <summary>
     /// Endpoint EXCLUSIVO para usuarios VOTANTES/PUBLICOS
     /// Devuelve datos limitados apropiados para votantes
     /// </summary>
-    [HttpGet("votante/dashboard")]
-    [Authorize(Roles = "Publico")]
-    public async Task<IActionResult> GetVotanteDashboard()
-    {
-        try
-        {
-            // Verificar que es realmente un votante
-            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
-            var accessType = User.FindFirst("AccessType")?.Value;
-            
-            if (userRole != "Publico" || accessType != "Votacion")
-            {
-                return Forbid("Acceso denegado: Solo votantes públicos");
-            }
+    // [HttpGet("votante/dashboard")]
+    // [Authorize(Roles = "Publico")]
+    // public async Task<IActionResult> GetVotanteDashboard()
+    // {
+    //     try
+    //     {
+    //         // Verificar que es realmente un votante
+    //         var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+    //         var accessType = User.FindFirst("AccessType")?.Value;
 
-            // Verificar si el concurso ha terminado
-            var ultimoAjuste = await _context.Ajustes
-                .OrderByDescending(a => a.Id_Ajuste)
-                .FirstOrDefaultAsync();
+    //         if (userRole != "Publico" || accessType != "Votacion")
+    //         {
+    //             return Forbid("Acceso denegado: Solo votantes públicos");
+    //         }
 
-            var concursoTerminado = ultimoAjuste?.Publicacion_Resultados ?? false;
+    //         // Verificar si el concurso ha terminado
+    //         var ultimoAjuste = await _context.Ajustes
+    //             .OrderByDescending(a => a.Id_Ajuste)
+    //             .FirstOrDefaultAsync();
 
-            // Obtener votación en curso (si la hay)
-            var votacionEnCurso = await ObtenerVotacionEnCurso();
-            
-            // Obtener ranking (solo si el concurso terminó o hay una votación activa)
-            var ranking = concursoTerminado ? await ObtenerRankingCompleto() : new List<object>();
+    //         var concursoTerminado = ultimoAjuste?.Publicacion_Resultados ?? false;
 
-            var response = new
-            {
-                concursoTerminado = concursoTerminado,
-                votacionEnCurso = votacionEnCurso != null,
-                detallesVotacionEnCurso = votacionEnCurso,
-                ranking = ranking
-            };
+    //         // Obtener votación en curso (si la hay)
+    //         var votacionEnCurso = await ObtenerVotacionEnCurso();
 
-            return Ok(response);
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { error = "Error obteniendo dashboard votante", detalle = ex.Message });
-        }
-    }
+    //         // Obtener ranking (solo si el concurso terminó o hay una votación activa)
+    //         var ranking = concursoTerminado ? await ObtenerRankingCompleto() : new List<object>();
+
+    //         var response = new
+    //         {
+    //             concursoTerminado = concursoTerminado,
+    //             votacionEnCurso = votacionEnCurso != null,
+    //             detallesVotacionEnCurso = votacionEnCurso,
+    //             ranking = ranking
+    //         };
+
+    //         return Ok(response);
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         return StatusCode(500, new { error = "Error obteniendo dashboard votante", detalle = ex.Message });
+    //     }
+    // }
 
     /// <summary>
     /// Endpoint para validar acceso y redirigir al dashboard apropiado
     /// </summary>
-    [HttpGet("dashboard/info")]
-    [Authorize]
-    public IActionResult GetDashboardInfo()
-    {
-        try
-        {
-            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
-            var userName = User.FindFirst(ClaimTypes.Name)?.Value;
-            var accessType = User.FindFirst("AccessType")?.Value;
+    // [HttpGet("dashboard/info")]
+    // [Authorize]
+    // public IActionResult GetDashboardInfo()
+    // {
+    //     try
+    //     {
+    //         var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+    //         var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+    //         var accessType = User.FindFirst("AccessType")?.Value;
 
-            var dashboardInfo = new
-            {
-                usuario = userName,
-                rol = userRole,
-                tipoAcceso = accessType,
-                endpoints = userRole switch
-                {
-                    "Administrador" => new { dashboard = "/api/admin/dashboard", tipo = "admin" },
-                    "Publico" => new { dashboard = "/api/votante/dashboard", tipo = "votante" },
-                    _ => new { dashboard = "", tipo = "unknown" }
-                }
-            };
+    //         var dashboardInfo = new
+    //         {
+    //             usuario = userName,
+    //             rol = userRole,
+    //             tipoAcceso = accessType,
+    //             endpoints = userRole switch
+    //             {
+    //                 "Administrador" => new { dashboard = "/api/admin/dashboard", tipo = "admin" },
+    //                 "Publico" => new { dashboard = "/api/votante/dashboard", tipo = "votante" },
+    //                 _ => new { dashboard = "", tipo = "unknown" }
+    //             }
+    //         };
 
-            return Ok(dashboardInfo);
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { error = "Error obteniendo info dashboard", detalle = ex.Message });
-        }
-    }
+    //         return Ok(dashboardInfo);
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         return StatusCode(500, new { error = "Error obteniendo info dashboard", detalle = ex.Message });
+    //     }
+    // }
 
     // ===== MÉTODOS AUXILIARES =====
 
@@ -596,7 +596,7 @@ public class CatrinasController : ControllerBase
     {
         // Por ahora simulamos - puedes implementar lógica real de votación en curso
         // Esto podría venir de una tabla de sesiones de votación o similar
-        
+
         var participanteEnVotacion = await _context.Participantes
             .Include(p => p.Estado)
             .Where(p => p.Id_Estado == 2) // Estado "En Espera" (votación activa)
@@ -618,7 +618,7 @@ public class CatrinasController : ControllerBase
     {
         // Actualizar la tabla Rankings antes de obtener los datos
         await ActualizarRankingConTotales();
-        
+
         // Obtener ranking basado en evaluaciones suma total - solo participantes calificados (estado 3)
         var rankings = await _context.Participantes
             .Where(p => p.Id_Estado == 3) // Solo participantes calificados
@@ -693,7 +693,7 @@ public class CatrinasController : ControllerBase
                 rankingExistente.TotalPasarela = datos.SumaPasarela;
                 rankingExistente.TotalInteraccion = datos.SumaInteraccion;
                 rankingExistente.FechaActualizacion = DateTime.Now;
-                
+
                 _context.Rankings.Update(rankingExistente);
             }
             else
@@ -711,7 +711,7 @@ public class CatrinasController : ControllerBase
                     FechaActualizacion = DateTime.Now,
                     Observaciones = "Calculado automáticamente"
                 };
-                
+
                 await _context.Rankings.AddAsync(nuevoRanking);
             }
         }
@@ -721,75 +721,76 @@ public class CatrinasController : ControllerBase
     }
 
     // Endpoint para actualizar manualmente los rankings
-    [HttpPost("actualizar-rankings")]
-    [Authorize] // Requiere autenticación
-    public async Task<IActionResult> ActualizarRankings()
-    {
-        try
-        {
-            await ActualizarRankingConTotales();
-            
-            return Ok(new 
-            { 
-                mensaje = "Rankings actualizados exitosamente",
-                fecha = DateTime.Now,
-                participantesActualizados = await _context.Rankings.CountAsync()
-            });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new 
-            { 
-                error = "Error actualizando rankings",
-                detalle = ex.Message
-            });
-        }
-    }
+    // [HttpPost("actualizar-rankings")]
+    // [Authorize] // Requiere autenticación
+    // public async Task<IActionResult> ActualizarRankings()
+    // {
+    //     try
+    //     {
+    //         await ActualizarRankingConTotales();
+
+    //         return Ok(new 
+    //         { 
+    //             mensaje = "Rankings actualizados exitosamente",
+    //             fecha = DateTime.Now,
+    //             participantesActualizados = await _context.Rankings.CountAsync()
+    //         });
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         return StatusCode(500, new 
+    //         { 
+    //             error = "Error actualizando rankings",
+    //             detalle = ex.Message
+    //         });
+    //     }
+    // }
 
     // Endpoint para obtener rankings con totales por categoría desde la tabla Rankings
-    [HttpGet("rankings-detallados")]
-    public async Task<IActionResult> ObtenerRankingsDetallados()
-    {
-        try
-        {
-            var rankings = await _context.Rankings
-                .Include(r => r.Participante)
-                .Where(r => r.Participante.Id_Estado == 3) // Solo participantes calificados
-                .OrderByDescending(r => r.Puntos)
-                .Select((r, index) => new
-                {
-                    idParticipante = r.Id_Participante,
-                    participante = r.Participante.Nombre,
-                    puntajeTotal = r.Puntos,
-                    totalesPorCategoria = new
-                    {
-                        atuendo = r.TotalAtuendo,
-                        maquillaje = r.TotalMaquillaje,
-                        tradiciones = r.TotalTradiciones,
-                        pasarela = r.TotalPasarela,
-                        interaccion = r.TotalInteraccion
-                    },
-                    ordenRanking = index + 1,
-                    fechaActualizacion = r.FechaActualizacion,
-                    observaciones = r.Observaciones
-                })
-                .ToListAsync();
+    // [HttpGet("rankings-detallados")]
+    // public async Task<IActionResult> ObtenerRankingsDetallados()
+    // {
+    //     try
+    //     {
+    //         var rankings = await _context.Rankings
+    //             .Include(r => r.Participante)
+    //             .Where(r => r.Participante.Id_Estado == 3) // Solo participantes calificados
+    //             .OrderByDescending(r => r.Puntos)
+    //             .Select((r, index) => new
+    //             {
+    //                 idParticipante = r.Id_Participante,
+    //                 participante = r.Participante.Nombre,
+    //                 puntajeTotal = r.Puntos,
+    //                 totalesPorCategoria = new
+    //                 {
+    //                     atuendo = r.TotalAtuendo,
+    //                     maquillaje = r.TotalMaquillaje,
+    //                     tradiciones = r.TotalTradiciones,
+    //                     pasarela = r.TotalPasarela,
+    //                     interaccion = r.TotalInteraccion
+    //                 },
+    //                 ordenRanking = index + 1,
+    //                 fechaActualizacion = r.FechaActualizacion,
+    //                 observaciones = r.Observaciones
+    //             })
+    //             .ToListAsync();
 
-            return Ok(new 
-            { 
-                mensaje = "Rankings detallados obtenidos exitosamente",
-                totalParticipantes = rankings.Count,
-                rankings = rankings,
-                fechaConsulta = DateTime.Now
-            });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new 
-            { 
-                error = "Error obteniendo rankings detallados",
-                detalle = ex.Message
-            });
-        }
-    }
+    //         return Ok(new
+    //         {
+    //             mensaje = "Rankings detallados obtenidos exitosamente",
+    //             totalParticipantes = rankings.Count,
+    //             rankings = rankings,
+    //             fechaConsulta = DateTime.Now
+    //         });
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         return StatusCode(500, new
+    //         {
+    //             error = "Error obteniendo rankings detallados",
+    //             detalle = ex.Message
+    //         });
+    //     }
+    // }
+
 }
