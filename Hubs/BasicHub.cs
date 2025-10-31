@@ -387,15 +387,18 @@ public class BasicHub : Hub
 
     // ===== MÉTODOS PRIVADOS PARA OBTENER DATOS =====
 
-    private async Task<object> GetAdminDashboardData(){
-        try {
+    private async Task<object> GetAdminDashboardData()
+    {
+        try
+        {
             // Obtener votación en curso desde el diccionario en memoria
             var participanteEnVotacion = await _context.Participantes
                 .Where(p => p.Id_Estado == 2) // En Espera (votación activa)
                 .FirstOrDefaultAsync();
 
             object? datosVotacion = null;
-            if (participanteEnVotacion != null && _votacionesEnCurso.ContainsKey(participanteEnVotacion.Id_Participante)){
+            if (participanteEnVotacion != null && _votacionesEnCurso.ContainsKey(participanteEnVotacion.Id_Participante))
+            {
                 datosVotacion = _votacionesEnCurso[participanteEnVotacion.Id_Participante];
             }
 
@@ -403,7 +406,8 @@ public class BasicHub : Hub
             var participantes = await _context.Participantes
                 .Include(p => p.Estado)
                 .OrderBy(p => p.Orden)
-                .Select(p => new{
+                .Select(p => new
+                {
                     idParticipante = p.Id_Participante,
                     participante = p.Nombre,
                     estado = p.Id_Estado,
@@ -419,7 +423,8 @@ public class BasicHub : Hub
                 .OrderByDescending(a => a.Id_Ajuste)
                 .FirstOrDefaultAsync();
 
-            return new {
+            return new
+            {
                 votacionEnCurso = datosVotacion,
                 participantes = participantes,
                 ranking = ranking,
@@ -429,7 +434,9 @@ public class BasicHub : Hub
                     terminado = ultimoAjuste?.Publicacion_Resultados ?? false
                 }
             };
-        } catch (Exception ex){
+        }
+        catch (Exception ex)
+        {
             _logger.LogError($"[BASIC HUB] Error al obtener datos de dashboard admin: {ex.Message}");
             return new
             {
@@ -481,8 +488,10 @@ public class BasicHub : Hub
         }
     }
 
-    private async Task<object> GetVotanteData(){
-        try{
+    private async Task<object> GetVotanteData()
+    {
+        try
+        {
             // Verificar si el evento está marcado como terminado
             var ultimoAjuste = await _context.Ajustes
             .Where(a => a.Activo == true)
@@ -491,18 +500,20 @@ public class BasicHub : Hub
 
             var esJurado = false;
             var idAccesoStr = Context.User?.FindFirst("IdAcceso")?.Value;
-            if (!string.IsNullOrEmpty(idAccesoStr) && int.TryParse(idAccesoStr, out var idAcceso)){
+            if (!string.IsNullOrEmpty(idAccesoStr) && int.TryParse(idAccesoStr, out var idAcceso))
+            {
                 var acceso = await _context.Accesos.FirstOrDefaultAsync(a => a.Id_Acceso == idAcceso);
                 esJurado = acceso?.EsJurado ?? false;
             }
 
-            if (ultimoAjuste?.Publicacion_Resultados ?? false){
+            if (ultimoAjuste?.Publicacion_Resultados ?? false)
+            {
                 return new
                 {
                     type = "error",
                     concursoTerminado = true,
                     votacionEnCurso = false,
-                    esJurado = esJurado,
+                    esJurado,
                     mensaje = "El concurso ha finalizado. Ya no es posible votar."
                 };
             }
@@ -512,13 +523,25 @@ public class BasicHub : Hub
             .Where(p => p.Id_Estado == 2) // En Espera (votación activa)
             .FirstOrDefaultAsync();
 
-
+            if (participanteEnVotacion == null)
+            {
+                return new
+                {
+                    type = "success",
+                    timestamp = DateTime.UtcNow,
+                    concursoTerminado = false,
+                    votacionEnCurso = false,
+                    esJurado = esJurado,
+                    mensaje = "No hay ninguna votación activa en este momento."
+                };
+            }
 
             // Validar si existe una votación en curso en el diccionario
             var tieneVotacionEnCurso = participanteEnVotacion != null && _votacionesEnCurso.ContainsKey(participanteEnVotacion.Id_Participante);
 
             // Validar inconsistencia: si participanteEnVotacion existe pero no hay votación en curso en el diccionario
-            if (participanteEnVotacion != null && !tieneVotacionEnCurso){
+            if (participanteEnVotacion != null && !tieneVotacionEnCurso)
+            {
                 // Inconsistencia detectada: participante en estado de votación pero no hay votación en curso
                 _votacionesEnCurso.Remove(participanteEnVotacion.Id_Participante); // Limpiar el objeto para evitar inconsistencias
                 return new
@@ -533,40 +556,30 @@ public class BasicHub : Hub
             }
 
 
-            if (participanteEnVotacion == null){
-                return new
-                {
-                    type = "success",
-                    timestamp = DateTime.UtcNow,
-                    concursoTerminado = false,
-                    votacionEnCurso = false,
-                    esJurado = esJurado,
-                    mensaje = "No hay ninguna votación activa en este momento."
-                };
-            }
+
 
             return new
             {
                 type = "votante_data",
                 timestamp = DateTime.UtcNow,
                 concursoTerminado = false,
-                votacionEnCurso = true,
+                votacionEnCurso =  participanteEnVotacion!=null,
                 esJurado = esJurado,
-                detallesVotacionEnCurso = new
+                detallesVotacionEnCurso = participanteEnVotacion!=null? new
                 {
-                    idParticipante = participanteEnVotacion.Id_Participante,
-                    participante = participanteEnVotacion.Nombre,
-                    mensaje = $"Puedes votar por {participanteEnVotacion.Nombre}",
-                    tiempoInicio = _votacionesEnCurso[participanteEnVotacion.Id_Participante].TiempoInicio,
-                    tiempoDuracion = _votacionesEnCurso[participanteEnVotacion.Id_Participante].TiempoDuracion,
-                    tiempoTranscurrido = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _votacionesEnCurso[participanteEnVotacion.Id_Participante].TiempoInicio,
-                    tiempoRestante = Math.Max(0, _votacionesEnCurso[participanteEnVotacion.Id_Participante].TiempoDuracion - (DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _votacionesEnCurso[participanteEnVotacion.Id_Participante].TiempoInicio))
-                }
+                    idParticipante = participanteEnVotacion?.Id_Participante ?? 0,
+                    participante = participanteEnVotacion?.Nombre ?? "",
+                    mensaje = participanteEnVotacion != null ? $"Puedes votar por {participanteEnVotacion.Nombre}" : "",
+                    tiempoInicio = participanteEnVotacion != null && _votacionesEnCurso.ContainsKey(participanteEnVotacion.Id_Participante) ? _votacionesEnCurso[participanteEnVotacion.Id_Participante].TiempoInicio : 0,
+                    tiempoDuracion = participanteEnVotacion != null && _votacionesEnCurso.ContainsKey(participanteEnVotacion.Id_Participante) ? _votacionesEnCurso[participanteEnVotacion.Id_Participante].TiempoDuracion : 0,
+                    tiempoTranscurrido = participanteEnVotacion != null && _votacionesEnCurso.ContainsKey(participanteEnVotacion.Id_Participante) ? DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _votacionesEnCurso[participanteEnVotacion.Id_Participante].TiempoInicio : 0,
+                    tiempoRestante = participanteEnVotacion != null && _votacionesEnCurso.ContainsKey(participanteEnVotacion.Id_Participante) ? Math.Max(0, _votacionesEnCurso[participanteEnVotacion.Id_Participante].TiempoDuracion - (DateTimeOffset.UtcNow.ToUnixTimeSeconds() - _votacionesEnCurso[participanteEnVotacion.Id_Participante].TiempoInicio)) : 0
+                }:null
             };
         }
         catch (Exception ex)
         {
-            _logger.LogError($"[BASIC HUB] Error al obtener datos de votante: {ex.Message}");
+            _logger.LogError("[BASIC HUB] Error al obtener datos de votante: {Message}", ex.Message);
             return new
             {
                 type = "error",
@@ -1126,7 +1139,8 @@ public class BasicHub : Hub
 
 
 
-            if (iniciarVotacion){
+            if (iniciarVotacion)
+            {
                 // Iniciar votación: cambiar estado a "En Espera" (2)
                 participante.Id_Estado = 2;
 
@@ -1154,34 +1168,41 @@ public class BasicHub : Hub
                 // Notificar a todos los votantes del cambio
                 await Clients.Group("Votantes").SendAsync("ServerResponse", JsonSerializer.Serialize(await GetVotanteData(), JsonOptions));
 
+                Console.WriteLine($"[TIMER] Antes de iniciar la cuenta regresiva para participante {idParticipante}");
                 // Iniciar cuenta regresiva en segundo plano
                 _ = Task.Run(async () =>
                 {
                     Console.WriteLine($"[TIMER] Iniciando cuenta regresiva para participante {idParticipante} por {tiempoDuracion} segundos");
                     var tiempoRestante = tiempoDuracion;
-                    while (tiempoRestante > 0) {
+                    while (tiempoRestante > 0)
+                    {
                         await Task.Delay(1000); // Esperar 1 segundo
                         tiempoRestante--;
-
                         Console.WriteLine($"[TIMER] Tiempo restante: {tiempoRestante} segundos para participante {idParticipante}");
-                        if (!_votacionesEnCurso.ContainsKey(idParticipante)) {
+                        if (!_votacionesEnCurso.ContainsKey(idParticipante))
+                        {
                             Console.WriteLine($"[TIMER] Votación ya finalizada manualmente para participante {idParticipante}");
                             tiempoRestante = 0;
                             break; // Salir si la votación fue finalizada manualmente
                         }
                     }
-                    if (tiempoRestante <= 0 && _votacionesEnCurso.ContainsKey(idParticipante)){
+                    if (tiempoRestante <= 0 && _votacionesEnCurso.ContainsKey(idParticipante))
+                    {
                         Console.WriteLine($"[TIMER] ¡TIEMPO TERMINADO! Finalizando votación automáticamente para participante {idParticipante}");
                         await FinalizarVotacionAutomatica(idParticipante);
                     }
                 });
-            } else {
+                Console.WriteLine($"[TIMER] Salio del inicio de la cuenta regresiva para participante {idParticipante}");
+            }
+            else
+            {
 
                 var participanteEnVotacion = await _context.Participantes
                     .Where(p => p.Id_Participante == idParticipante && p.Id_Estado == 2)
                     .FirstOrDefaultAsync();
 
-                if (participanteEnVotacion == null) {
+                if (participanteEnVotacion == null)
+                {
                     await Clients.Group("Administradores").SendAsync("ServerResponse", JsonSerializer.Serialize(await GetAdminDashboardData(), JsonOptions));
                     return;
                 }
@@ -1194,7 +1215,8 @@ public class BasicHub : Hub
                     .Where(e => e.Id_Participante == idParticipante)
                     .ToListAsync();
 
-                foreach (var evaluacion in evaluacionesParticipante){
+                foreach (var evaluacion in evaluacionesParticipante)
+                {
                     evaluacion.Activo = false;
                 }
 

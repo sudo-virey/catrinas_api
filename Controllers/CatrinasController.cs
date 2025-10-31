@@ -133,6 +133,7 @@ public class CatrinasController : ControllerBase
             {
                 accesoValido = true,
                 idAcceso = acceso.Id_Acceso,
+                esJurado = acceso.EsJurado,
                 concursoTerminado = concursoTerminado,
                 token = token,
                 mensaje = "Código de acceso válido"
