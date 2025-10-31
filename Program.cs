@@ -15,7 +15,11 @@ builder.Services.AddControllers();
 
 // Configurar Entity Framework con SQL Server
 builder.Services.AddDbContext<CatrinasDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions => sqlOptions.EnableRetryOnFailure()
+    )
+);
 
 // Configurar JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -78,34 +82,26 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(builder =>
     {
-        builder.SetIsOriginAllowed(origin => 
-               {
-                   // Permitir localhost y direcciones IP de red local
-                   if (origin.StartsWith("http://localhost") || origin.StartsWith("https://localhost"))
-                       return true;
-                   
-                   // Permitir IPs de red local (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
-                   if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
-                   {
-                       var host = uri.Host;
-                       return host.StartsWith("192.168.") || 
-                              host.StartsWith("10.") || 
-                              (host.StartsWith("172.") && int.TryParse(host.Split('.')[1], out var second) && second >= 16 && second <= 31);
-                   }
-                   
-                   // Permitir también IETAM
-                   return origin == "https://ietam.org.mx";
-               })
+        builder.SetIsOriginAllowed(_ => true)
                .AllowAnyMethod()
                .AllowAnyHeader()
                .AllowCredentials();
     });
 });
+/*builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(builder =>
+    {
+        builder.AllowAnyOrigin()
+               .AllowAnyMethod()
+               .AllowAnyHeader();
+    });
+});*/
 
 var app = builder.Build();
 
 // Configurar path base para el despliegue en subcarpeta
-app.UsePathBase("/CATRINAS_API");
+app.UsePathBase("/API_PRUEBA");
 
 // Configurar el pipeline HTTP
 if (app.Environment.IsDevelopment())
@@ -127,7 +123,7 @@ app.UseSwagger(c =>
 });
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/CATRINAS_API/swagger/v1/swagger.json", "Catrinas API V1");
+    c.SwaggerEndpoint("/API_PRUEBA/swagger/v1/swagger.json", "Catrinas API V1");
     c.RoutePrefix = "swagger";
     c.DocumentTitle = "Catrinas API - Documentación";
 });
